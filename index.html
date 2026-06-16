@@ -1101,7 +1101,7 @@ function updateSearcherChips(){
   const names=[...new Set(reports.map(r=>r.searcher||'Anonymous'))].sort();
   const container=document.getElementById('searcherChips'); if(!container)return;
   const existing=[...container.querySelectorAll('.fchip')].map(c=>c.dataset.fval);
-  if(existing.join(','')===names.join(',')) return;
+  if(existing.join(',')===names.join(',')) return;
   container.innerHTML='';
   names.forEach(name=>{
     const c=document.createElement('div');
