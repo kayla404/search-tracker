@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Search Tracker — Coordinate Missing Person Searches</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --bg:#0f172a;--panel:#1e293b;--panel2:#273449;--line:#334155;
+  --text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--accent2:#0ea5e9;
+  --done:#22c55e;--todo:#f59e0b;--danger:#ef4444;--radius:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{height:100%}
+body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text)}
+
+/* ═══════════════════════════════════════
+   LANDING PAGE
+═══════════════════════════════════════ */
+#landing{
+  min-height:100vh;min-height:100dvh;
+  display:flex;flex-direction:column;align-items:center;
+  padding:0 16px 60px;
+  background:radial-gradient(ellipse at top,#1e3a5f 0%,#0f172a 60%);
+}
+.land-hero{text-align:center;padding:60px 0 36px;max-width:560px}
+.land-hero .torch{font-size:52px;margin-bottom:12px}
+.land-hero h1{font-size:clamp(24px,5vw,38px);font-weight:800;margin:0 0 12px;letter-spacing:-.5px}
+.land-hero h1 span{color:var(--accent)}
+.land-hero p{font-size:16px;color:var(--muted);line-height:1.6;margin:0}
+
+.land-cards{display:flex;gap:12px;margin:28px 0;flex-wrap:wrap;justify-content:center;max-width:560px}
+.land-card{flex:1;min-width:140px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;text-align:center}
+.land-card .icon{font-size:24px;margin-bottom:6px}
+.land-card .ct{font-size:13px;font-weight:700;margin-bottom:4px}
+.land-card .cd{font-size:12px;color:var(--muted);line-height:1.4}
+
+.land-box{
+  width:100%;max-width:480px;
+  background:var(--panel);border:1px solid var(--line);border-radius:18px;
+  padding:28px 24px;
+}
+.land-box h2{font-size:18px;font-weight:800;margin:0 0 20px;text-align:center}
+
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.field input,.field select,.field textarea{
+  width:100%;background:var(--panel2);border:1px solid var(--line);
+  border-radius:10px;color:var(--text);padding:12px;font-size:16px;
+  font-family:inherit;-webkit-appearance:none;appearance:none;
+  transition:border-color .15s;
+}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
+.field .hint{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.4}
+
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+.lbtn{
+  width:100%;border:none;border-radius:12px;padding:16px;
+  font-size:17px;font-weight:800;cursor:pointer;
+  background:linear-gradient(135deg,var(--accent2),#0284c7);
+  color:#fff;margin-top:8px;min-height:54px;
+  box-shadow:0 4px 20px rgba(14,165,233,.35);
+  transition:opacity .15s,transform .1s;
+}
+.lbtn:active{opacity:.85;transform:translateY(1px)}
+.lbtn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+
+.divider{display:flex;align-items:center;gap:10px;margin:20px 0;color:var(--muted);font-size:13px}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--line)}
+
+.join-box{display:flex;gap:8px}
+.join-box input{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:12px;font-size:16px;font-family:inherit;-webkit-appearance:none}
+.join-box input:focus{outline:none;border-color:var(--accent)}
+.join-btn{
+  border:none;border-radius:10px;padding:0 18px;
+  background:var(--panel2);color:var(--text);border:1px solid var(--line);
+  font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;min-height:48px;
+}
+.join-btn:active{opacity:.7}
+
+.err{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#fca5a5;border-radius:10px;padding:10px 14px;font-size:13px;margin-top:12px;display:none}
+.err.show{display:block}
+
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ═══════════════════════════════════════
+   SUCCESS / SHARE SCREEN
+═══════════════════════════════════════ */
+#share-screen{display:none;min-height:100vh;min-height:100dvh;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;background:radial-gradient(ellipse at top,#1e3a5f 0%,#0f172a 60%)}
+#share-screen.show{display:flex}
+.share-card{width:100%;max-width:480px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:28px 24px;text-align:center}
+.share-card .big-check{font-size:52px;margin-bottom:12px}
+.share-card h2{font-size:22px;font-weight:800;margin:0 0 8px}
+.share-card p{color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 20px}
+.share-url{
+  background:var(--panel2);border:1px solid var(--accent);border-radius:10px;
+  padding:12px 14px;font-family:ui-monospace,Menlo,monospace;font-size:13px;
+  color:var(--accent);word-break:break-all;text-align:left;margin-bottom:14px;
+  cursor:pointer;transition:background .15s;
+}
+.share-url:active{background:#1e3a5f}
+.copy-btn{
+  width:100%;border:none;border-radius:10px;padding:14px;
+  font-size:16px;font-weight:700;cursor:pointer;
+  background:var(--accent2);color:#fff;margin-bottom:10px;min-height:48px;
+}
+.copy-btn.copied{background:var(--done)}
+.go-btn{
+  width:100%;border:1px solid var(--line);border-radius:10px;padding:14px;
+  font-size:16px;font-weight:700;cursor:pointer;
+  background:var(--panel2);color:var(--text);min-height:48px;
+}
+
+/* ═══════════════════════════════════════
+   TRACKER APP
+═══════════════════════════════════════ */
+#tracker-app{display:none;flex-direction:column;height:100vh;height:100dvh}
+#tracker-app.show{display:flex}
+body.in-tracker{overflow:hidden}
+
+header{
+  flex-shrink:0;padding:10px 14px;
+  background:linear-gradient(180deg,#172033,#0f172a);
+  border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding-left:max(14px,env(safe-area-inset-left));
+  padding-right:max(14px,env(safe-area-inset-right));
+}
+.hd-left{display:flex;flex-direction:column;gap:1px}
+header h1{font-size:15px;margin:0;font-weight:800}
+header .sub{font-size:11px;color:var(--muted)}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:5px;vertical-align:middle;flex-shrink:0}
+.status-dot.live{background:var(--done);box-shadow:0 0 0 3px rgba(34,197,94,.2)}
+.status-dot.offline{background:var(--danger)}
+.conn{font-size:12px;color:var(--muted);margin-left:auto;display:flex;align-items:center}
+.share-mini{
+  background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+  padding:5px 10px;font-size:12px;font-weight:700;color:var(--accent);
+  cursor:pointer;white-space:nowrap;margin-left:8px;
+}
+.share-mini:active{opacity:.7}
+
+main{flex:1;display:flex;min-height:0;overflow:hidden}
+#map-wrap{position:relative;flex:1;min-width:0;display:flex}
+#map{flex:1;background:#1a2436}
+.leaflet-container{background:#1a2436}
+
+aside{
+  width:360px;max-width:44vw;
+  border-left:1px solid var(--line);background:var(--panel);
+  display:flex;flex-direction:column;min-height:0;overflow:hidden;
+}
+.tabs{display:flex;border-bottom:1px solid var(--line);flex-shrink:0}
+.tab{flex:1;padding:13px 4px;text-align:center;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;user-select:none}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.panel{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px;display:none;padding-bottom:max(14px,env(safe-area-inset-bottom))}
+.panel.active{display:block}
+
+.stats{display:flex;gap:6px;margin-bottom:14px}
+.stat{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);padding:8px;text-align:center}
+.stat .n{font-size:20px;font-weight:800}
+.stat .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:1px}
+.stat.done .n{color:var(--done)}.stat.todo .n{color:var(--todo)}
+
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 5px;font-weight:600}
+input[type=text],input[type=email],textarea,select{font-family:inherit;font-size:16px}
+input[type=text],textarea{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:10px;-webkit-appearance:none;appearance:none}
+textarea{resize:vertical;min-height:60px}
+.btn{display:block;width:100%;border:none;border-radius:10px;padding:13px;font-weight:700;cursor:pointer;background:var(--accent2);color:#001018;margin-top:12px;font-size:16px;min-height:48px;font-family:inherit}
+.btn:active{opacity:.8}
+.btn.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+.geo{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px}
+.geo-coords{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--accent)}
+.help{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5}
+
+.zone-item,.log-item{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
+.zone-item:active{border-color:var(--accent)}
+.zone-item .zt{font-weight:700;font-size:13px}
+.zone-item .zd{font-size:11px;color:var(--muted);margin-top:2px}
+.log-item{cursor:default}
+.log-item .who{font-weight:700;font-size:13px}
+.log-item .meta{font-size:11px;color:var(--muted);margin-top:2px}
+.log-item .note{font-size:12px;margin-top:4px;color:#cbd5e1}
+.empty{color:var(--muted);font-size:13px;text-align:center;padding:24px 8px}
+.pill{display:inline-block;font-size:10px;font-weight:700;padding:2px 6px;border-radius:999px;text-transform:uppercase;letter-spacing:.4px}
+.pill.done{background:rgba(34,197,94,.15);color:var(--done)}
+.pill.todo{background:rgba(245,158,11,.15);color:var(--todo)}
+
+.banner{background:#7f1d1d;color:#fecaca;padding:10px 16px;font-size:13px;text-align:center;display:none;flex-shrink:0}
+.banner.show{display:block}
+
+.legend{position:absolute;bottom:40px;left:10px;z-index:500;background:rgba(15,23,42,.92);border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:10px;pointer-events:none}
+.legend .li{display:flex;align-items:center;gap:5px;margin:2px 0}
+.legend .sw{width:11px;height:11px;border-radius:2px;flex-shrink:0}
+
+/* Share modal */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9000;display:none;align-items:center;justify-content:center;padding:16px}
+.modal-backdrop.show{display:flex}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px;width:100%;max-width:440px;text-align:center}
+.modal h3{margin:0 0 8px;font-size:18px;font-weight:800}
+.modal p{color:var(--muted);font-size:13px;margin:0 0 16px;line-height:1.5}
+.modal .url-box{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--accent);word-break:break-all;text-align:left;margin-bottom:12px}
+.modal-close{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px;font-size:14px;font-weight:700;color:var(--text);cursor:pointer;width:100%}
+
+/* Mobile */
+@media(max-width:680px){
+  body{overflow:hidden}
+  main{flex-direction:column}
+  #map-wrap{height:42dvh;height:42vh;flex:none}
+  #map{height:100%}
+  aside{width:100%;max-width:none;flex:1;border-left:none;border-top:1px solid var(--line);min-height:0}
+  .tab{padding:13px 2px;font-size:11px}
+  .legend{font-size:10px;bottom:36px}
+  .land-cards{flex-direction:row}
+  .land-card{min-width:100px}
+}
+@media(max-width:375px){
+  #map-wrap{height:38dvh;height:38vh}
+  .stat .n{font-size:17px}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ LANDING PAGE ═══════════ -->
+<div id="landing">
+  <div class="land-hero">
+    <div class="torch">🔦</div>
+    <h1>Search Tracker<br><span>Find them faster, together.</span></h1>
+    <p>Coordinate volunteer search efforts in real time. Every team reports what they've searched — the map updates for everyone instantly.</p>
+  </div>
+
+  <div class="land-cards">
+    <div class="land-card"><div class="icon">🗺️</div><div class="ct">Live Map</div><div class="cd">Zones turn green as teams report in</div></div>
+    <div class="land-card"><div class="icon">📍</div><div class="ct">GPS</div><div class="cd">Phones auto-detect which zone they're in</div></div>
+    <div class="land-card"><div class="icon">⚡</div><div class="ct">Instant</div><div class="cd">All devices sync in real time</div></div>
+    <div class="land-card"><div class="icon">🆓</div><div class="ct">Free</div><div class="cd">No accounts needed for searchers</div></div>
+  </div>
+
+  <div class="land-box">
+    <h2>Start a new search</h2>
+
+    <div class="field">
+      <label>Missing person's name</label>
+      <input type="text" id="l-name" placeholder="e.g. Jane Doe" inputmode="text" autocomplete="off"/>
+    </div>
+
+    <div class="field">
+      <label>Last seen address or location</label>
+      <input type="text" id="l-addr" placeholder="e.g. 123 Main St, Brooklyn NY" inputmode="text" autocomplete="off"/>
+      <div class="hint">We'll look up the coordinates automatically.</div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Search radius</label>
+        <select id="l-radius">
+          <option value="800">½ mile</option>
+          <option value="1600">1 mile</option>
+          <option value="4000">2.5 miles</option>
+          <option value="8000">5 miles</option>
+          <option value="16093" selected>10 miles</option>
+          <option value="32000">20 miles</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Grid detail</label>
+        <select id="l-grid">
+          <option value="6">Coarse (6×6)</option>
+          <option value="8">Medium (8×8)</option>
+          <option value="10">Fine (10×10)</option>
+          <option value="12" selected>Very fine (12×12)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Your name (organizer)</label>
+      <input type="text" id="l-organizer" placeholder="e.g. Det. Rivera / Command" inputmode="text" autocomplete="name"/>
+    </div>
+
+    <div id="l-err" class="err"></div>
+    <button class="lbtn" id="l-submit" onclick="createCase()">🔦 Create Search Tracker</button>
+
+    <div class="divider">or join an existing search</div>
+
+    <div class="join-box">
+      <input type="text" id="l-code" placeholder="Paste search link or code" inputmode="text" autocomplete="off"/>
+      <button class="join-btn" onclick="joinCase()">Join →</button>
+    </div>
+    <div id="j-err" class="err"></div>
+  </div>
+</div>
+
+<!-- ═══════════ SHARE SCREEN ═══════════ -->
+<div id="share-screen">
+  <div class="share-card">
+    <div class="big-check">✅</div>
+    <h2>Search created!</h2>
+    <p>Share this link with your search teams. Anyone who opens it joins the search instantly — no account needed.</p>
+    <div class="share-url" id="share-url-display" onclick="copyShareUrl()"></div>
+    <button class="copy-btn" id="copy-btn" onclick="copyShareUrl()">📋 Copy link</button>
+    <button class="go-btn" onclick="openTracker()">Open tracker →</button>
+  </div>
+</div>
+
+<!-- ═══════════ TRACKER APP ═══════════ -->
+<div id="tracker-app">
+  <header>
+    <div class="hd-left">
+      <h1 id="t-title">🔦 Search Tracker</h1>
+      <div class="sub" id="t-sub">Loading…</div>
+    </div>
+    <div class="conn">
+      <span class="status-dot" id="dot"></span><span id="connText">Connecting…</span>
+      <span class="share-mini" onclick="openShareModal()">Share 🔗</span>
+    </div>
+  </header>
+  <div class="banner" id="cfgBanner"></div>
+  <main>
+    <div id="map-wrap">
+      <div id="map"></div>
+      <div class="legend">
+        <div class="li"><span class="sw" style="background:#f59e0b"></span>To search</div>
+        <div class="li"><span class="sw" style="background:#22c55e"></span>Searched</div>
+        <div class="li"><span class="sw" style="background:#38bdf8"></span>You</div>
+      </div>
+    </div>
+    <aside>
+      <div class="tabs">
+        <div class="tab active" data-tab="report">Report</div>
+        <div class="tab" data-tab="todo">To Search (<span id="todoCount">0</span>)</div>
+        <div class="tab" data-tab="log">Activity</div>
+      </div>
+      <div class="panel active" id="panel-report">
+        <div class="stats">
+          <div class="stat done"><div class="n" id="sDone">0</div><div class="l">Searched</div></div>
+          <div class="stat todo"><div class="n" id="sTodo">0</div><div class="l">Remaining</div></div>
+          <div class="stat"><div class="n" id="sReports">0</div><div class="l">Reports</div></div>
+        </div>
+        <form id="reportForm">
+          <label>Step 1 — Select the zone you searched</label>
+          <select id="zonePicker" onchange="onZonePick(this.value)" style="width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:11px;font-size:16px;font-family:inherit;-webkit-appearance:none;appearance:none">
+            <option value="">— Pick a zone from the list —</option>
+          </select>
+          <div class="help" id="zonePickerHint" style="margin-bottom:6px">Or tap any zone on the map, or use GPS below.</div>
+
+          <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+            <div style="flex:1;height:1px;background:var(--line)"></div>
+            <span style="font-size:11px;color:var(--muted)">or use GPS</span>
+            <div style="flex:1;height:1px;background:var(--line)"></div>
+          </div>
+
+          <div class="geo" style="margin-top:8px">
+            <span>📍</span>
+            <div style="flex:1;min-width:0">
+              <div class="geo-coords" id="geoCoords">Not located yet</div>
+              <div class="help" id="geoZone"></div>
+            </div>
+            <button type="button" class="btn secondary" style="width:auto;margin:0;flex-shrink:0;font-size:13px;padding:8px 12px" id="locateBtn">Locate me</button>
+          </div>
+
+          <label style="margin-top:14px">Step 2 — Your name / team</label>
+          <input type="text" id="searcherName" placeholder="e.g. Team B – Rivera" autocomplete="name" inputmode="text"/>
+          <label>Step 3 — Landmark or area description (optional)</label>
+          <input type="text" id="areaName" placeholder="e.g. north creek trail, parking lot" inputmode="text"/>
+          <label>Notes (optional)</label>
+          <textarea id="notes" placeholder="What you checked, anything found, conditions…"></textarea>
+          <label style="display:flex;align-items:center;gap:10px;margin-top:12px;cursor:pointer">
+            <input type="checkbox" id="needsRevisit" style="width:20px;height:20px;flex-shrink:0"/>
+            <span style="color:var(--text);font-weight:600;font-size:14px">Flag for re-search</span>
+          </label>
+          <button type="submit" class="btn" id="submitBtn">✓ Record this search</button>
+        </form>
+      </div>
+      <div class="panel" id="panel-todo">
+        <div class="help" style="margin-bottom:10px">Unsearched zones — tap one to center map and pre-fill a report.</div>
+        <div id="todoList"></div>
+      </div>
+      <div class="panel" id="panel-log">
+        <div id="logList"></div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<!-- Share modal (inside tracker) -->
+<div class="modal-backdrop" id="shareModal">
+  <div class="modal">
+    <h3>🔗 Share this search</h3>
+    <p>Anyone who opens this link joins the search instantly. No account needed.</p>
+    <div class="url-box" id="modal-url"></div>
+    <button class="copy-btn" id="modal-copy-btn" onclick="copyModalUrl()" style="width:100%;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;background:var(--accent2);color:#fff;margin-bottom:10px;min-height:48px">📋 Copy link</button>
+    <button class="modal-close" onclick="closeShareModal()">Close</button>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   FIREBASE CONFIG
+═══════════════════════════════════════════ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDl7O0eI8mfebjVMwZ93HEsBCDyIlsX4eE",
+  authDomain: "search-tracker-a9651.firebaseapp.com",
+  projectId: "search-tracker-a9651",
+  storageBucket: "search-tracker-a9651.firebasestorage.app",
+  messagingSenderId: "844594849020",
+  appId: "1:844594849020:web:d705c9a3ea45f16a472379"
+};
+
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.firestore();
+
+/* ═══════════════════════════════════════════
+   ROUTING — check URL for ?case=ID on load
+═══════════════════════════════════════════ */
+let ACTIVE_CASE = null; // the case config object
+
+window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const caseId = params.get('case');
+  if (caseId) {
+    loadCase(caseId);
+  }
+  // else: show landing page (already visible)
+});
+
+/* ═══════════════════════════════════════════
+   GEOCODING — convert address → lat/lng
+═══════════════════════════════════════════ */
+async function geocode(address) {
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`;
+  const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+  const data = await res.json();
+  if (!data.length) throw new Error('Address not found. Try adding the city and state.');
+  return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+}
+
+/* ═══════════════════════════════════════════
+   CREATE CASE
+═══════════════════════════════════════════ */
+let pendingCaseUrl = '';
+
+async function createCase() {
+  const name      = document.getElementById('l-name').value.trim();
+  const addr      = document.getElementById('l-addr').value.trim();
+  const radius    = parseInt(document.getElementById('l-radius').value);
+  const grid      = parseInt(document.getElementById('l-grid').value);
+  const organizer = document.getElementById('l-organizer').value.trim();
+
+  const errEl = document.getElementById('l-err');
+  errEl.classList.remove('show');
+
+  if (!name) { showErr(errEl, 'Please enter the missing person\'s name.'); return; }
+  if (!addr) { showErr(errEl, 'Please enter a last-seen address.'); return; }
+
+  const btn = document.getElementById('l-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Looking up address…';
+
+  let coords;
+  try {
+    coords = await geocode(addr);
+  } catch(e) {
+    showErr(errEl, e.message);
+    btn.disabled = false;
+    btn.innerHTML = '🔦 Create Search Tracker';
+    return;
+  }
+
+  btn.innerHTML = '<span class="spinner"></span>Creating search…';
+
+  // Generate a short human-friendly ID
+  const caseId = name.toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').slice(0,20)
+    + '-' + Math.random().toString(36).slice(2,7);
+
+  const caseDoc = {
+    id: caseId,
+    personName: name,
+    address: addr,
+    lat: coords.lat,
+    lng: coords.lng,
+    radius,
+    grid,
+    organizer: organizer || 'Anonymous',
+    created: new Date().toISOString()
+  };
+
+  try {
+    await db.collection('cases').doc(caseId).set(caseDoc);
+  } catch(e) {
+    showErr(errEl, 'Could not save to database: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = '🔦 Create Search Tracker';
+    return;
+  }
+
+  const url = window.location.origin + window.location.pathname + '?case=' + caseId;
+  pendingCaseUrl = url;
+  ACTIVE_CASE = caseDoc;
+
+  document.getElementById('share-url-display').textContent = url;
+  document.getElementById('landing').style.display = 'none';
+  document.getElementById('share-screen').classList.add('show');
+
+  btn.disabled = false;
+  btn.innerHTML = '🔦 Create Search Tracker';
+}
+
+function openTracker() {
+  document.getElementById('share-screen').classList.remove('show');
+  // Push the case ID into the URL so sharing/refreshing works
+  history.pushState({}, '', '?case=' + ACTIVE_CASE.id);
+  startTracker(ACTIVE_CASE);
+}
+
+/* ═══════════════════════════════════════════
+   JOIN CASE
+═══════════════════════════════════════════ */
+async function joinCase() {
+  const raw = document.getElementById('l-code').value.trim();
+  const errEl = document.getElementById('j-err');
+  errEl.classList.remove('show');
+  if (!raw) { showErr(errEl, 'Paste a search link or case code.'); return; }
+
+  // Extract case ID from a full URL or treat raw value as ID
+  let caseId = raw;
+  try {
+    const u = new URL(raw);
+    caseId = new URLSearchParams(u.search).get('case') || raw;
+  } catch(e) { /* not a URL, use raw */ }
+
+  loadCase(caseId.trim());
+}
+
+async function loadCase(caseId) {
+  // Show a loading state on landing if it's still visible
+  const errEl = document.getElementById('j-err');
+  try {
+    const snap = await db.collection('cases').doc(caseId).get();
+    if (!snap.exists) {
+      showErr(errEl, 'Search not found. Check the link and try again.');
+      return;
+    }
+    ACTIVE_CASE = snap.data();
+    history.pushState({}, '', '?case=' + caseId);
+    document.getElementById('landing').style.display = 'none';
+    startTracker(ACTIVE_CASE);
+  } catch(e) {
+    showErr(errEl, 'Could not load search: ' + e.message);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   SHARE HELPERS
+═══════════════════════════════════════════ */
+function getCaseUrl() {
+  return window.location.origin + window.location.pathname + '?case=' + ACTIVE_CASE.id;
+}
+function copyShareUrl() {
+  const url = pendingCaseUrl || getCaseUrl();
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = '✅ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '📋 Copy link'; btn.classList.remove('copied'); }, 2500);
+  });
+}
+function openShareModal() {
+  document.getElementById('modal-url').textContent = getCaseUrl();
+  document.getElementById('shareModal').classList.add('show');
+}
+function closeShareModal() {
+  document.getElementById('shareModal').classList.remove('show');
+}
+function copyModalUrl() {
+  navigator.clipboard.writeText(getCaseUrl()).then(() => {
+    const btn = document.getElementById('modal-copy-btn');
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => { btn.textContent = '📋 Copy link'; }, 2500);
+  });
+}
+document.getElementById('shareModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('shareModal')) closeShareModal();
+});
+
+/* ═══════════════════════════════════════════
+   TRACKER — geometry
+═══════════════════════════════════════════ */
+const M_PER_DEG_LAT = 111320;
+function mPerDegLng(lat) { return 111320 * Math.cos(lat * Math.PI / 180); }
+
+let ZONES = [], zoneLayers = {}, zoneStatus = {};
+
+function buildGrid(cfg) {
+  zoneStatus = {};
+  const half = cfg.radius, step = (2 * half) / cfg.grid;
+  const grid = [];
+  const center = { lat: cfg.lat, lng: cfg.lng };
+  for (let r = 0; r < cfg.grid; r++) {
+    for (let c = 0; c < cfg.grid; c++) {
+      const id = `Z${r+1}-${c+1}`;
+      const y0 = half - r*step, y1 = half - (r+1)*step;
+      const x0 = -half + c*step, x1 = -half + (c+1)*step;
+      const latN = center.lat + y0/M_PER_DEG_LAT;
+      const latS = center.lat + y1/M_PER_DEG_LAT;
+      const lngW = center.lng + x0/mPerDegLng(center.lat);
+      const lngE = center.lng + x1/mPerDegLng(center.lat);
+      const cellCenter = { lat:(latN+latS)/2, lng:(lngW+lngE)/2 };
+      if (distM(center, cellCenter) <= half) {
+        grid.push({ id, bounds:[[latS,lngW],[latN,lngE]], center:cellCenter });
+        zoneStatus[id] = { searched:false, count:0 };
+      }
+    }
+  }
+  return grid;
+}
+
+function distM(a, b) {
+  const dLat = (b.lat-a.lat)*M_PER_DEG_LAT;
+  const dLng = (b.lng-a.lng)*mPerDegLng(a.lat);
+  return Math.sqrt(dLat*dLat + dLng*dLng);
+}
+
+function zoneForPoint(p, cfg) {
+  let best=null, bd=Infinity;
+  for (const z of ZONES) { const d=distM(z.center,p); if(d<bd){bd=d;best=z;} }
+  const center = { lat:cfg.lat, lng:cfg.lng };
+  return (best && distM(center,p)<=cfg.radius) ? best.id : null;
+}
+
+/* ═══════════════════════════════════════════
+   TRACKER — map + state
+═══════════════════════════════════════════ */
+let map=null, reports=[], myMarker=null, myPos=null;
+
+function startTracker(cfg) {
+  document.getElementById('tracker-app').classList.add('show');
+  document.body.classList.add('in-tracker');
+
+  document.getElementById('t-title').textContent = '🔦 ' + cfg.personName;
+  document.getElementById('t-sub').textContent = cfg.address;
+  document.title = 'Find ' + cfg.personName + ' — Search Tracker';
+
+  // Init map
+  if (map) { map.remove(); map = null; }
+  zoneLayers = {}; reports = [];
+
+  map = L.map('map', { zoomControl:false }).setView([cfg.lat, cfg.lng], 11);
+  L.control.zoom({ position:'bottomright' }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom:19, attribution:'© OpenStreetMap'
+  }).addTo(map);
+  L.circle([cfg.lat,cfg.lng], { radius:cfg.radius, color:'#38bdf8', weight:2, fill:false, dashArray:'6 6' }).addTo(map);
+  L.marker([cfg.lat,cfg.lng]).addTo(map).bindPopup('Last seen: ' + cfg.address);
+
+  ZONES = buildGrid(cfg);
+  ZONES.forEach(z => {
+    const rect = L.rectangle(z.bounds, { color:'#f59e0b', weight:1, fillOpacity:.18, fillColor:'#f59e0b' });
+    rect.on('click', () => selectZone(z.id));
+    rect.addTo(map);
+    zoneLayers[z.id] = rect;
+  });
+  const b = L.latLngBounds(ZONES.flatMap(z => z.bounds));
+  if (b.isValid()) map.fitBounds(b.pad(0.1));
+  setTimeout(() => map && map.invalidateSize(), 300);
+
+  renderAll();
+  populateZonePicker();
+  initBackend(cfg);
+}
+
+function paintZone(id) {
+  const rect = zoneLayers[id]; if (!rect) return;
+  const st = zoneStatus[id];
+  const col = st.searched ? '#22c55e' : '#f59e0b';
+  rect.setStyle({ color:col, fillColor:col, fillOpacity:st.searched?.32:.18 });
+  rect.bindPopup(`<b>${id}</b><br>${st.searched
+    ? 'Searched (' + st.count + ' report' + (st.count>1?'s':'') + ')'
+    : 'Not yet searched'}`);
+}
+
+function selectZone(id) {
+  const z = ZONES.find(x => x.id===id); if (!z) return;
+  map.panTo(z.center);
+  document.querySelector('[data-tab="report"]').click();
+  const a = document.getElementById('areaName');
+  a.value = a.value || ('Zone ' + id);
+  a.dataset.zone = id;
+  document.getElementById('geoZone').textContent = 'Targeting zone ' + id;
+  zoneLayers[id].openPopup();
+}
+
+/* ═══════════════════════════════════════════
+   TRACKER — geolocation
+═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════
+   TRACKER — zone picker dropdown
+═══════════════════════════════════════════ */
+function populateZonePicker() {
+  const sel = document.getElementById('zonePicker');
+  sel.innerHTML = '<option value="">— Pick a zone from the list —</option>';
+  ZONES.forEach(z => {
+    const searched = zoneStatus[z.id] && zoneStatus[z.id].searched;
+    const opt = document.createElement('option');
+    opt.value = z.id;
+    opt.textContent = z.id + (searched ? ' ✓ searched' : '');
+    sel.appendChild(opt);
+  });
+}
+
+function onZonePick(id) {
+  if (!id) return;
+  const z = ZONES.find(x => x.id === id); if (!z) return;
+  map.panTo(z.center);
+  const a = document.getElementById('areaName');
+  a.value = a.value || ('Zone ' + id);
+  a.dataset.zone = id;
+  // Flash the selected zone blue briefly
+  const rect = zoneLayers[id];
+  if (rect) {
+    rect.setStyle({ weight: 3, color: '#38bdf8' });
+    setTimeout(() => paintZone(id), 1200);
+    rect.openPopup();
+  }
+  document.getElementById('geoZone').textContent = '';
+  const hint = document.getElementById('zonePickerHint');
+  hint.textContent = 'Zone ' + id + ' selected — highlighted on map above';
+  hint.style.color = 'var(--accent)';
+}
+
+function locate() {
+  if (!navigator.geolocation) { alert('Geolocation not supported on this device.'); return; }
+  document.getElementById('geoCoords').textContent = 'Locating…';
+  navigator.geolocation.getCurrentPosition(pos => {
+    myPos = { lat:pos.coords.latitude, lng:pos.coords.longitude };
+    document.getElementById('geoCoords').textContent =
+      myPos.lat.toFixed(5) + ', ' + myPos.lng.toFixed(5) + ' (±' + Math.round(pos.coords.accuracy) + 'm)';
+    const zid = zoneForPoint(myPos, ACTIVE_CASE);
+    document.getElementById('geoZone').textContent = zid ? 'Inside zone ' + zid : 'Outside search radius';
+    if (myMarker) map.removeLayer(myMarker);
+    myMarker = L.circleMarker([myPos.lat,myPos.lng], { radius:8, color:'#38bdf8', fillColor:'#38bdf8', fillOpacity:.9 }).addTo(map);
+    map.panTo(myPos);
+    renderTodo();
+  }, err => {
+    const msgs = { 1:'Permission denied — allow location in browser settings.', 2:'Position unavailable. Try outside.', 3:'Timed out. Try again.' };
+    document.getElementById('geoCoords').textContent = 'Location unavailable';
+    document.getElementById('geoZone').textContent = msgs[err.code] || err.message;
+  }, { enableHighAccuracy:true, timeout:15000, maximumAge:30000 });
+}
+document.getElementById('locateBtn').addEventListener('click', locate);
+
+/* ═══════════════════════════════════════════
+   TRACKER — Firebase backend
+═══════════════════════════════════════════ */
+let unsubscribe = null;
+
+function initBackend(cfg) {
+  if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+  unsubscribe = db.collection('search_reports')
+    .where('case_id', '==', cfg.id)
+    .onSnapshot(snap => {
+      setConn(true);
+      reports = [];
+      zoneStatus = {};
+      ZONES.forEach(z => zoneStatus[z.id] = { searched:false, count:0 });
+      snap.forEach(doc => ingest(doc.data(), cfg));
+      reports.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      renderAll();
+    }, err => {
+      setConn(false);
+      console.error(err);
+      showBanner('⚠️ Database error: ' + err.message);
+    });
+}
+
+function ingest(r, cfg) {
+  reports.push(r);
+  const zid = r.zone_id || (r.lat&&r.lng ? zoneForPoint({lat:r.lat,lng:r.lng}, cfg) : null);
+  if (zid && zoneStatus[zid]) {
+    zoneStatus[zid].searched = r.needs_revisit ? false : true;
+    zoneStatus[zid].count++;
+  }
+}
+
+function setConn(ok) {
+  const dot = document.getElementById('dot'), t = document.getElementById('connText');
+  if (ok) { dot.className='status-dot live'; t.textContent='Live'; }
+  else    { dot.className='status-dot offline'; t.textContent='Offline'; }
+}
+
+/* ═══════════════════════════════════════════
+   TRACKER — submit report
+═══════════════════════════════════════════ */
+document.getElementById('reportForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!ACTIVE_CASE) return;
+  const name    = document.getElementById('searcherName').value.trim() || 'Anonymous';
+  const area    = document.getElementById('areaName').value.trim();
+  const note    = document.getElementById('notes').value.trim();
+  const revisit = document.getElementById('needsRevisit').checked;
+  const targetZone = document.getElementById('areaName').dataset.zone || null;
+  let lat=null, lng=null, zid=targetZone;
+  if (myPos) { lat=myPos.lat; lng=myPos.lng; zid = zid || zoneForPoint(myPos, ACTIVE_CASE); }
+  if (!lat && !zid) { alert('Tap "Locate me" or pick a zone on the map first.'); return; }
+
+  const rec = {
+    case_id: ACTIVE_CASE.id,
+    searcher: name, area, notes:note,
+    lat, lng, zone_id:zid, needs_revisit:revisit,
+    created_at: new Date().toISOString()
+  };
+  const btn = document.getElementById('submitBtn');
+  btn.disabled=true; btn.textContent='Saving…';
+  try {
+    await db.collection('search_reports').add(rec);
+  } catch(err) {
+    alert('Could not save: ' + err.message);
+    btn.disabled=false; btn.textContent='✓ Record this search';
+    return;
+  }
+  e.target.reset();
+  delete document.getElementById('areaName').dataset.zone;
+  document.getElementById('geoZone').textContent = 'Recorded ✓';
+  btn.disabled=false; btn.textContent='✓ Record this search';
+});
+
+/* ═══════════════════════════════════════════
+   TRACKER — rendering
+═══════════════════════════════════════════ */
+function renderAll() {
+  ZONES.forEach(z => paintZone(z.id));
+  populateZonePicker();
+  const total = ZONES.length;
+  const done  = Object.values(zoneStatus).filter(s=>s.searched).length;
+  document.getElementById('sDone').textContent = done;
+  document.getElementById('sTodo').textContent = total - done;
+  document.getElementById('sReports').textContent = reports.length;
+  document.getElementById('todoCount').textContent = total - done;
+  renderTodo(); renderLog();
+}
+
+function renderTodo() {
+  const el = document.getElementById('todoList');
+  const remaining = ZONES.filter(z => !zoneStatus[z.id].searched);
+  if (!remaining.length) { el.innerHTML='<div class="empty">🎉 Every zone has been searched!</div>'; return; }
+  if (myPos) remaining.sort((a,b) => distM(myPos,a.center) - distM(myPos,b.center));
+  el.innerHTML = remaining.map(z => {
+    const d = myPos ? Math.round(distM(myPos, z.center)) : null;
+    return `<div class="zone-item" data-z="${z.id}">
+      <div class="zt">${z.id} <span class="pill todo">to search</span></div>
+      <div class="zd">${z.center.lat.toFixed(4)}, ${z.center.lng.toFixed(4)}${d!=null?' · ~'+d+'m from you':''}</div>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.zone-item').forEach(n => n.addEventListener('click', () => selectZone(n.dataset.z)));
+}
+
+function renderLog() {
+  const el = document.getElementById('logList');
+  if (!reports.length) { el.innerHTML='<div class="empty">No searches reported yet.</div>'; return; }
+  el.innerHTML = reports.map(r => {
+    const ago = timeAgo(new Date(r.created_at));
+    return `<div class="log-item">
+      <div class="who">${esc(r.searcher||'Anonymous')} ${r.needs_revisit?'<span class="pill todo">re-search</span>':'<span class="pill done">searched</span>'}</div>
+      <div class="meta">${r.zone_id?'Zone '+esc(r.zone_id)+' · ':''}${r.area?esc(r.area)+' · ':''}${ago}</div>
+      ${r.notes?'<div class="note">'+esc(r.notes)+'</div>':''}
+    </div>`;
+  }).join('');
+}
+
+function timeAgo(d) {
+  const s = Math.floor((Date.now()-d.getTime())/1000);
+  if(s<60)return s+'s ago'; if(s<3600)return Math.floor(s/60)+'m ago';
+  if(s<86400)return Math.floor(s/3600)+'h ago'; return d.toLocaleString();
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function showErr(el,msg){el.textContent=msg;el.classList.add('show');}
+function showBanner(html){const b=document.getElementById('cfgBanner');b.innerHTML=html;b.classList.add('show');}
+
+/* Tabs */
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById('panel-'+t.dataset.tab).classList.add('active');
+  if (t.dataset.tab==='report') setTimeout(()=>map&&map.invalidateSize(),50);
+}));
+
+/* Resize / orientation */
+window.addEventListener('resize', () => setTimeout(()=>map&&map.invalidateSize(),200));
+</script>
+</body>
+</html>
