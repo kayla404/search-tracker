@@ -3,899 +3,1358 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<title>Search Tracker — Coordinate Missing Person Searches</title>
+<title>Help Find Julia Aurelus</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <style>
 :root{
   --bg:#0f172a;--panel:#1e293b;--panel2:#273449;--line:#334155;
   --text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--accent2:#0ea5e9;
-  --done:#22c55e;--todo:#f59e0b;--danger:#ef4444;--radius:14px;
+  --done:#22c55e;--active:#eab308;--todo:#f97316;--danger:#ef4444;--radius:12px;
 }
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html{height:100%}
-body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+html{height:100%;height:100dvh}
+body{height:100%;height:100dvh;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);overflow:hidden;display:flex;flex-direction:column}
 
-/* ═══════════════════════════════════════
-   LANDING PAGE
-═══════════════════════════════════════ */
-#landing{
-  min-height:100vh;min-height:100dvh;
-  display:flex;flex-direction:column;align-items:center;
-  padding:0 16px 60px;
-  background:radial-gradient(ellipse at top,#1e3a5f 0%,#0f172a 60%);
+/* ── Header ── */
+header{
+  flex-shrink:0;padding:8px 12px;
+  background:linear-gradient(135deg,#1a2744 0%,#0f172a 100%);
+  border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:8px;
+  padding-left:max(12px,env(safe-area-inset-left));
+  padding-right:max(12px,env(safe-area-inset-right));
+  padding-top:max(8px,env(safe-area-inset-top));
 }
-.land-hero{text-align:center;padding:60px 0 36px;max-width:560px}
-.land-hero .torch{font-size:52px;margin-bottom:12px}
-.land-hero h1{font-size:clamp(24px,5vw,38px);font-weight:800;margin:0 0 12px;letter-spacing:-.5px}
-.land-hero h1 span{color:var(--accent)}
-.land-hero p{font-size:16px;color:var(--muted);line-height:1.6;margin:0}
+.hd-avatar{width:34px;height:34px;border-radius:50%;border:2px solid var(--accent);flex-shrink:0;background:var(--panel2);display:flex;align-items:center;justify-content:center;font-size:17px}
+.hd-info{flex:1;min-width:0}
+.hd-info h1{font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+.hd-info .sub{font-size:10px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hd-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.dot.live{background:var(--done);box-shadow:0 0 0 3px rgba(34,197,94,.25)}
+.dot.off{background:var(--danger)}
+#connText{font-size:10px;color:var(--muted)}
+.hbtn{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:11px;font-weight:700;color:var(--accent);cursor:pointer;white-space:nowrap;line-height:1}
+.hbtn:active{opacity:.7}
 
-.land-cards{display:flex;gap:12px;margin:28px 0;flex-wrap:wrap;justify-content:center;max-width:560px}
-.land-card{flex:1;min-width:140px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;text-align:center}
-.land-card .icon{font-size:24px;margin-bottom:6px}
-.land-card .ct{font-size:13px;font-weight:700;margin-bottom:4px}
-.land-card .cd{font-size:12px;color:var(--muted);line-height:1.4}
+/* ── Main layout ── */
+#main{flex:1;display:flex;min-height:0;overflow:hidden}
+#map-wrap{position:relative;flex:1;min-width:0}
+#map{position:absolute;top:0;left:0;right:0;bottom:0;background:#1a2436}
+.leaflet-container{background:#1a2436;font-family:inherit}
 
-.land-box{
-  width:100%;max-width:480px;
-  background:var(--panel);border:1px solid var(--line);border-radius:18px;
-  padding:28px 24px;
+/* ── Sidebar ── */
+aside{width:340px;max-width:42vw;border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.tabs{display:flex;border-bottom:1px solid var(--line);flex-shrink:0;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:11px 8px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;user-select:none;white-space:nowrap}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent)}
+.pane{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px;display:none;padding-bottom:max(12px,env(safe-area-inset-bottom))}
+.pane.on{display:block}
+
+/* ── Map legend ── */
+.legend{position:absolute;bottom:36px;left:8px;z-index:500;background:rgba(13,20,38,.96);border:1px solid var(--line);border-radius:10px;padding:8px 10px;pointer-events:none;max-width:180px}
+.legend .li{display:flex;align-items:center;gap:6px;margin:3px 0;font-size:10px}
+.legend .sw{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+.legend .sep{height:1px;background:var(--line);margin:5px 0}
+.legend .li2{font-size:10px;color:var(--muted);margin:2px 0}
+
+/* ── Stats ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:12px}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:7px 3px;text-align:center}
+.stat .n{font-size:17px;font-weight:800;line-height:1}
+.stat .l{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+.stat.sd .n{color:var(--done)}.stat.sa .n{color:var(--active)}.stat.st .n{color:var(--todo)}
+
+/* ── Form shared ── */
+.flabel{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:12px 0 5px;display:block}
+.flabel:first-child{margin-top:0}
+input[type=text],input[type=tel],input[type=email],textarea,select{
+  width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:9px;
+  color:var(--text);padding:10px;font-size:16px;font-family:inherit;
+  -webkit-appearance:none;appearance:none;display:block;
 }
-.land-box h2{font-size:18px;font-weight:800;margin:0 0 20px;text-align:center}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
+textarea{resize:vertical;min-height:52px}
+.btn{display:block;width:100%;border:none;border-radius:9px;padding:12px;font-weight:700;cursor:pointer;background:var(--accent2);color:#fff;margin-top:10px;font-size:15px;min-height:46px;font-family:inherit;transition:opacity .15s}
+.btn:active{opacity:.8}
+.btn.sec{background:var(--panel2);color:var(--text);border:1px solid var(--line);color:var(--text)}
+.btn.danger{background:rgba(239,68,68,.15);color:var(--danger);border:1px solid rgba(239,68,68,.3)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
-.field{margin-bottom:16px}
-.field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
-.field input,.field select,.field textarea{
-  width:100%;background:var(--panel2);border:1px solid var(--line);
-  border-radius:10px;color:var(--text);padding:12px;font-size:16px;
-  font-family:inherit;-webkit-appearance:none;appearance:none;
-  transition:border-color .15s;
-}
-.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
-.field .hint{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.4}
+/* ── Status picker ── */
+.status-row{display:flex;gap:6px;margin:4px 0}
+.sopt{flex:1;border:2px solid var(--line);border-radius:9px;padding:8px 3px;text-align:center;cursor:pointer;background:var(--panel2);user-select:none;transition:all .12s}
+.sopt .si{font-size:18px;display:block;margin-bottom:2px}
+.sopt .sl{font-size:9px;font-weight:700;color:var(--muted);line-height:1.2}
+.sopt.a-active{border-color:var(--active);background:rgba(234,179,8,.12)}.sopt.a-active .sl{color:var(--active)}
+.sopt.a-done{border-color:var(--done);background:rgba(34,197,94,.12)}.sopt.a-done .sl{color:var(--done)}
+.sopt.a-todo{border-color:var(--todo);background:rgba(249,115,22,.12)}.sopt.a-todo .sl{color:var(--todo)}
 
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+/* ── Activity grid ── */
+.agrid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:4px 0}
+.aopt{border:1.5px solid var(--line);border-radius:8px;padding:7px 3px;text-align:center;cursor:pointer;background:var(--panel2);user-select:none;transition:all .12s}
+.aopt .ai{font-size:16px;display:block;margin-bottom:2px}
+.aopt .al{font-size:9px;font-weight:600;color:var(--muted);line-height:1.2}
+.aopt.on{border-color:var(--accent);background:rgba(56,189,248,.12)}.aopt.on .al{color:var(--accent)}
 
-.lbtn{
-  width:100%;border:none;border-radius:12px;padding:16px;
-  font-size:17px;font-weight:800;cursor:pointer;
-  background:linear-gradient(135deg,var(--accent2),#0284c7);
-  color:#fff;margin-top:8px;min-height:54px;
-  box-shadow:0 4px 20px rgba(14,165,233,.35);
-  transition:opacity .15s,transform .1s;
-}
-.lbtn:active{opacity:.85;transform:translateY(1px)}
-.lbtn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+/* ── Zone picker ── */
+#zonePicker option[data-status=done]{color:#86efac}
+#zonePicker option[data-status=active]{color:#fde047}
 
-.divider{display:flex;align-items:center;gap:10px;margin:20px 0;color:var(--muted);font-size:13px}
-.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--line)}
+/* ── Geo bar ── */
+.geobar{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+.geocoords{font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--accent);flex:1;min-width:0;word-break:break-all;line-height:1.3}
+.help{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.5}
 
-.join-box{display:flex;gap:8px}
-.join-box input{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:12px;font-size:16px;font-family:inherit;-webkit-appearance:none}
-.join-box input:focus{outline:none;border-color:var(--accent)}
-.join-btn{
-  border:none;border-radius:10px;padding:0 18px;
-  background:var(--panel2);color:var(--text);border:1px solid var(--line);
-  font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;min-height:48px;
-}
-.join-btn:active{opacity:.7}
+/* ── Photo upload ── */
+.photo-strip{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0}
+.photo-thumb{width:60px;height:60px;border-radius:7px;object-fit:cover;border:1px solid var(--line)}
+.photo-add{width:60px;height:60px;border-radius:7px;border:1.5px dashed var(--line);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:22px;color:var(--muted);flex-shrink:0;background:var(--panel2)}
+.photo-add:active{background:var(--panel)}
+input[type=file]{display:none}
+.upload-progress{font-size:10px;color:var(--accent);margin-top:3px}
 
-.err{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#fca5a5;border-radius:10px;padding:10px 14px;font-size:13px;margin-top:12px;display:none}
-.err.show{display:block}
+/* ── Cards (zones, log, pins) ── */
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 11px;margin-bottom:7px;cursor:pointer}
+.card:active{border-color:var(--accent)}
+.card-title{font-weight:700;font-size:13px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.card-sub{font-size:10px;color:var(--muted);margin-top:2px}
+.card-acts{margin-top:3px;font-size:13px;letter-spacing:1px}
+.card-note{font-size:11px;margin-top:4px;color:#cbd5e1}
+.card-photos{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+.card-photos img{width:50px;height:50px;border-radius:5px;object-fit:cover;border:1px solid var(--line);cursor:pointer}
+.pill{display:inline-block;font-size:9px;font-weight:700;padding:2px 6px;border-radius:999px;text-transform:uppercase;letter-spacing:.3px}
+.pd{background:rgba(34,197,94,.15);color:var(--done)}
+.pa{background:rgba(234,179,8,.15);color:var(--active)}
+.pt{background:rgba(249,115,22,.15);color:var(--todo)}
+.pn{background:rgba(56,189,248,.15);color:var(--accent)}
 
-.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px}
+.empty{color:var(--muted);font-size:12px;text-align:center;padding:20px 8px}
+.banner{background:#7f1d1d;color:#fecaca;padding:8px 14px;font-size:12px;text-align:center;display:none;flex-shrink:0}
+.banner.on{display:block}
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:5px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* ═══════════════════════════════════════
-   SUCCESS / SHARE SCREEN
-═══════════════════════════════════════ */
-#share-screen{display:none;min-height:100vh;min-height:100dvh;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;background:radial-gradient(ellipse at top,#1e3a5f 0%,#0f172a 60%)}
-#share-screen.show{display:flex}
-.share-card{width:100%;max-width:480px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:28px 24px;text-align:center}
-.share-card .big-check{font-size:52px;margin-bottom:12px}
-.share-card h2{font-size:22px;font-weight:800;margin:0 0 8px}
-.share-card p{color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 20px}
-.share-url{
-  background:var(--panel2);border:1px solid var(--accent);border-radius:10px;
-  padding:12px 14px;font-family:ui-monospace,Menlo,monospace;font-size:13px;
-  color:var(--accent);word-break:break-all;text-align:left;margin-bottom:14px;
-  cursor:pointer;transition:background .15s;
-}
-.share-url:active{background:#1e3a5f}
-.copy-btn{
-  width:100%;border:none;border-radius:10px;padding:14px;
-  font-size:16px;font-weight:700;cursor:pointer;
-  background:var(--accent2);color:#fff;margin-bottom:10px;min-height:48px;
-}
-.copy-btn.copied{background:var(--done)}
-.go-btn{
-  width:100%;border:1px solid var(--line);border-radius:10px;padding:14px;
-  font-size:16px;font-weight:700;cursor:pointer;
-  background:var(--panel2);color:var(--text);min-height:48px;
-}
+/* ── Modals ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:8000;display:none;align-items:flex-end;justify-content:center;padding:0}
+.overlay.on{display:flex}
+.sheet{background:var(--panel);border-radius:18px 18px 0 0;padding:20px 16px;width:100%;max-width:560px;max-height:90dvh;max-height:90vh;overflow-y:auto;padding-bottom:max(20px,env(safe-area-inset-bottom))}
+.sheet-handle{width:36px;height:4px;background:var(--line);border-radius:2px;margin:0 auto 16px}
+.sheet h3{font-size:16px;font-weight:800;margin-bottom:12px;text-align:center}
+.sheet-close{float:right;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;margin-top:-4px}
 
-/* ═══════════════════════════════════════
-   TRACKER APP
-═══════════════════════════════════════ */
-#tracker-app{display:none;flex-direction:column;height:100vh;height:100dvh}
-#tracker-app.show{display:flex}
-body.in-tracker{overflow:hidden}
+/* ── Full image viewer ── */
+#imgViewer{position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column}
+#imgViewer.on{display:flex}
+#imgViewer img{max-width:96vw;max-height:85vh;border-radius:8px;object-fit:contain}
+#imgViewer button{margin-top:16px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 24px;color:var(--text);font-size:14px;font-weight:700;cursor:pointer}
 
-header{
-  flex-shrink:0;padding:10px 14px;
-  background:linear-gradient(180deg,#172033,#0f172a);
-  border-bottom:1px solid var(--line);
-  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-  padding-left:max(14px,env(safe-area-inset-left));
-  padding-right:max(14px,env(safe-area-inset-right));
-}
-.hd-left{display:flex;flex-direction:column;gap:1px}
-header h1{font-size:15px;margin:0;font-weight:800}
-header .sub{font-size:11px;color:var(--muted)}
-.status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:5px;vertical-align:middle;flex-shrink:0}
-.status-dot.live{background:var(--done);box-shadow:0 0 0 3px rgba(34,197,94,.2)}
-.status-dot.offline{background:var(--danger)}
-.conn{font-size:12px;color:var(--muted);margin-left:auto;display:flex;align-items:center}
-.share-mini{
-  background:var(--panel2);border:1px solid var(--line);border-radius:8px;
-  padding:5px 10px;font-size:12px;font-weight:700;color:var(--accent);
-  cursor:pointer;white-space:nowrap;margin-left:8px;
-}
-.share-mini:active{opacity:.7}
+/* ── People on map ── */
+/* handled via Leaflet divIcon */
 
-main{flex:1;display:flex;min-height:0;overflow:hidden}
-#map-wrap{position:relative;flex:1;min-width:0;display:flex}
-#map{flex:1;background:#1a2436}
-.leaflet-container{background:#1a2436}
-
-aside{
-  width:360px;max-width:44vw;
-  border-left:1px solid var(--line);background:var(--panel);
-  display:flex;flex-direction:column;min-height:0;overflow:hidden;
-}
-.tabs{display:flex;border-bottom:1px solid var(--line);flex-shrink:0}
-.tab{flex:1;padding:13px 4px;text-align:center;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;user-select:none}
-.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-.panel{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px;display:none;padding-bottom:max(14px,env(safe-area-inset-bottom))}
-.panel.active{display:block}
-
-.stats{display:flex;gap:6px;margin-bottom:14px}
-.stat{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);padding:8px;text-align:center}
-.stat .n{font-size:20px;font-weight:800}
-.stat .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:1px}
-.stat.done .n{color:var(--done)}.stat.todo .n{color:var(--todo)}
-
-label{display:block;font-size:12px;color:var(--muted);margin:10px 0 5px;font-weight:600}
-input[type=text],input[type=email],textarea,select{font-family:inherit;font-size:16px}
-input[type=text],textarea{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:10px;-webkit-appearance:none;appearance:none}
-textarea{resize:vertical;min-height:60px}
-.btn{display:block;width:100%;border:none;border-radius:10px;padding:13px;font-weight:700;cursor:pointer;background:var(--accent2);color:#001018;margin-top:12px;font-size:16px;min-height:48px;font-family:inherit}
-.btn:active{opacity:.8}
-.btn.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
-.btn:disabled{opacity:.5;cursor:not-allowed}
-
-.geo{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px}
-.geo-coords{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--accent)}
-.help{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5}
-
-.zone-item,.log-item{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
-.zone-item:active{border-color:var(--accent)}
-.zone-item .zt{font-weight:700;font-size:13px}
-.zone-item .zd{font-size:11px;color:var(--muted);margin-top:2px}
-.log-item{cursor:default}
-.log-item .who{font-weight:700;font-size:13px}
-.log-item .meta{font-size:11px;color:var(--muted);margin-top:2px}
-.log-item .note{font-size:12px;margin-top:4px;color:#cbd5e1}
-.empty{color:var(--muted);font-size:13px;text-align:center;padding:24px 8px}
-.pill{display:inline-block;font-size:10px;font-weight:700;padding:2px 6px;border-radius:999px;text-transform:uppercase;letter-spacing:.4px}
-.pill.done{background:rgba(34,197,94,.15);color:var(--done)}
-.pill.todo{background:rgba(245,158,11,.15);color:var(--todo)}
-
-.banner{background:#7f1d1d;color:#fecaca;padding:10px 16px;font-size:13px;text-align:center;display:none;flex-shrink:0}
-.banner.show{display:block}
-
-.legend{position:absolute;bottom:40px;left:10px;z-index:500;background:rgba(15,23,42,.92);border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:10px;pointer-events:none}
-.legend .li{display:flex;align-items:center;gap:5px;margin:2px 0}
-.legend .sw{width:11px;height:11px;border-radius:2px;flex-shrink:0}
-
-/* Share modal */
-.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9000;display:none;align-items:center;justify-content:center;padding:16px}
-.modal-backdrop.show{display:flex}
-.modal{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px;width:100%;max-width:440px;text-align:center}
-.modal h3{margin:0 0 8px;font-size:18px;font-weight:800}
-.modal p{color:var(--muted);font-size:13px;margin:0 0 16px;line-height:1.5}
-.modal .url-box{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--accent);word-break:break-all;text-align:left;margin-bottom:12px}
-.modal-close{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px;font-size:14px;font-weight:700;color:var(--text);cursor:pointer;width:100%}
-
-/* Mobile */
+/* ── Log filters ── */
+.filter-bar{background:var(--panel2);border-bottom:1px solid var(--line);padding:10px 12px;flex-shrink:0;display:flex;flex-direction:column;gap:8px}
+.filter-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.filter-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;min-width:36px}
+.fchip{display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:20px;font-size:11px;font-weight:600;border:1.5px solid var(--line);background:var(--panel);color:var(--muted);cursor:pointer;user-select:none;white-space:nowrap;transition:all .12s}
+.fchip.on{border-color:var(--accent);background:rgba(56,189,248,.12);color:var(--accent)}
+.fchip.on-done{border-color:var(--done);background:rgba(34,197,94,.12);color:var(--done)}
+.fchip.on-active{border-color:var(--active);background:rgba(234,179,8,.12);color:var(--active)}
+.fchip.on-todo{border-color:var(--todo);background:rgba(249,115,22,.12);color:var(--todo)}
+.fchip:active{opacity:.7}
+.filter-chips{display:flex;gap:5px;flex-wrap:wrap;flex:1}
+.f-date{background:var(--panel);border:1.5px solid var(--line);border-radius:8px;color:var(--text);padding:4px 8px;font-size:12px;font-family:inherit;-webkit-appearance:none;appearance:none;cursor:pointer}
+.f-date:focus{outline:none;border-color:var(--accent)}
+.filter-clear{font-size:11px;font-weight:700;color:var(--danger);cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid rgba(239,68,68,.3);background:rgba(239,68,68,.08);white-space:nowrap;margin-left:auto}
+.filter-clear:active{opacity:.7}
+.log-summary{padding:8px 12px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--line);background:var(--panel2);flex-shrink:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.log-summary strong{color:var(--text)}
+.log-summary .sum-chip{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;background:var(--panel)}
+/* ── Mobile ── */
 @media(max-width:680px){
-  body{overflow:hidden}
-  main{flex-direction:column}
-  #map-wrap{height:42dvh;height:42vh;flex:none}
-  #map{height:100%}
-  aside{width:100%;max-width:none;flex:1;border-left:none;border-top:1px solid var(--line);min-height:0}
-  .tab{padding:13px 2px;font-size:11px}
-  .legend{font-size:10px;bottom:36px}
-  .land-cards{flex-direction:row}
-  .land-card{min-width:100px}
+  #main{flex-direction:column}
+  #map-wrap{flex:none;height:44dvh;height:44vh}
+  aside{width:100%;max-width:none;flex:1;border-left:none;border-top:1px solid var(--line)}
+  .tab{padding:10px 6px;font-size:10px}
+  .legend{bottom:28px;left:6px;padding:6px 8px}
+  .stats{grid-template-columns:repeat(4,1fr)}
 }
-@media(max-width:375px){
-  #map-wrap{height:38dvh;height:38vh}
-  .stat .n{font-size:17px}
+@media(max-width:380px){
+  #map-wrap{height:40dvh;height:40vh}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .agrid{grid-template-columns:repeat(3,1fr)}
 }
 </style>
 </head>
 <body>
 
-<!-- ═══════════ LANDING PAGE ═══════════ -->
-<div id="landing">
-  <div class="land-hero">
-    <div class="torch">🔦</div>
-    <h1>Search Tracker<br><span>Find them faster, together.</span></h1>
-    <p>Coordinate volunteer search efforts in real time. Every team reports what they've searched — the map updates for everyone instantly.</p>
+<header>
+  <div class="hd-avatar">👧</div>
+  <div class="hd-info">
+    <h1>Help Find Julia Aurelus</h1>
+    <div class="sub">Last seen: Ralph Ave &amp; Ave O, Brooklyn NY</div>
+  </div>
+  <div class="hd-right">
+    <span class="dot" id="dot"></span>
+    <span id="connText">…</span>
+    <span class="hbtn" onclick="openShare()">Share 🔗</span>
+  </div>
+</header>
+<div class="banner" id="banner"></div>
+
+<div id="main">
+  <!-- MAP -->
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div class="legend">
+      <div class="li"><span class="sw" style="background:#f97316"></span>Not searched</div>
+      <div class="li"><span class="sw" style="background:#eab308"></span>Being searched</div>
+      <div class="li"><span class="sw" style="background:#22c55e"></span>Done</div>
+      <div class="sep"></div>
+      <div class="li2">📍 Search center (Ralph Ave &amp; Ave O)</div>
+      <div class="li2">👤 You/others on map</div>
+      <div class="li2">❗ Needs search</div>
+      <div class="li2">✅ Location done</div>
+      <div class="sep"></div>
+      <div class="li2">🪧🏪🏠🚶🚗📞</div>
+    </div>
   </div>
 
-  <div class="land-cards">
-    <div class="land-card"><div class="icon">🗺️</div><div class="ct">Live Map</div><div class="cd">Zones turn green as teams report in</div></div>
-    <div class="land-card"><div class="icon">📍</div><div class="ct">GPS</div><div class="cd">Phones auto-detect which zone they're in</div></div>
-    <div class="land-card"><div class="icon">⚡</div><div class="ct">Instant</div><div class="cd">All devices sync in real time</div></div>
-    <div class="land-card"><div class="icon">🆓</div><div class="ct">Free</div><div class="cd">No accounts needed for searchers</div></div>
-  </div>
-
-  <div class="land-box">
-    <h2>Start a new search</h2>
-
-    <div class="field">
-      <label>Missing person's name</label>
-      <input type="text" id="l-name" placeholder="e.g. Jane Doe" inputmode="text" autocomplete="off"/>
+  <!-- SIDEBAR -->
+  <aside>
+    <div class="tabs">
+      <div class="tab on" data-pane="report">📝 Report</div>
+      <div class="tab" data-pane="todo">🔍 To Do</div>
+      <div class="tab" data-pane="pins">📌 Locations</div>
+      <div class="tab" data-pane="log">📋 Log</div>
+      <div class="tab" data-pane="me">👤 Me</div>
     </div>
 
-    <div class="field">
-      <label>Last seen address or location</label>
-      <input type="text" id="l-addr" placeholder="e.g. 123 Main St, Brooklyn NY" inputmode="text" autocomplete="off"/>
-      <div class="hint">We'll look up the coordinates automatically.</div>
-    </div>
-
-    <div class="row2">
-      <div class="field">
-        <label>Search radius</label>
-        <select id="l-radius">
-          <option value="800">½ mile</option>
-          <option value="1600">1 mile</option>
-          <option value="4000">2.5 miles</option>
-          <option value="8000">5 miles</option>
-          <option value="16093" selected>10 miles</option>
-          <option value="32000">20 miles</option>
-        </select>
+    <!-- ══ REPORT ZONE ══ -->
+    <div class="pane on" id="pane-report">
+      <div class="stats">
+        <div class="stat sd"><div class="n" id="sDone">0</div><div class="l">Done</div></div>
+        <div class="stat sa"><div class="n" id="sActive">0</div><div class="l">Active</div></div>
+        <div class="stat st"><div class="n" id="sTodo">0</div><div class="l">Left</div></div>
+        <div class="stat"><div class="n" id="sRep">0</div><div class="l">Reports</div></div>
       </div>
-      <div class="field">
-        <label>Grid detail</label>
-        <select id="l-grid">
-          <option value="6">Coarse (6×6)</option>
-          <option value="8">Medium (8×8)</option>
-          <option value="10">Fine (10×10)</option>
-          <option value="12" selected>Very fine (12×12)</option>
-        </select>
+
+      <span class="flabel">1 · Zone</span>
+      <select id="zonePicker" onchange="onZonePick(this.value)">
+        <option value="">— Select zone or tap map —</option>
+      </select>
+      <div class="help" id="zoneHint">Tap an orange/yellow zone on the map, or pick from list above.</div>
+
+      <span class="flabel" style="margin-top:14px">2 · Zone status</span>
+      <div class="status-row">
+        <div class="sopt" data-s="active" onclick="pickStatus('active')"><span class="si">🔍</span><span class="sl">Searching<br>now</span></div>
+        <div class="sopt" data-s="done"   onclick="pickStatus('done')"  ><span class="si">✅</span><span class="sl">Searched<br>done</span></div>
+        <div class="sopt" data-s="todo"   onclick="pickStatus('todo')"  ><span class="si">↩️</span><span class="sl">Re-search<br>needed</span></div>
       </div>
-    </div>
 
-    <div class="field">
-      <label>Your name (organizer)</label>
-      <input type="text" id="l-organizer" placeholder="e.g. Det. Rivera / Command" inputmode="text" autocomplete="name"/>
-    </div>
-
-    <div id="l-err" class="err"></div>
-    <button class="lbtn" id="l-submit" onclick="createCase()">🔦 Create Search Tracker</button>
-
-    <div class="divider">or join an existing search</div>
-
-    <div class="join-box">
-      <input type="text" id="l-code" placeholder="Paste search link or code" inputmode="text" autocomplete="off"/>
-      <button class="join-btn" onclick="joinCase()">Join →</button>
-    </div>
-    <div id="j-err" class="err"></div>
-  </div>
-</div>
-
-<!-- ═══════════ SHARE SCREEN ═══════════ -->
-<div id="share-screen">
-  <div class="share-card">
-    <div class="big-check">✅</div>
-    <h2>Search created!</h2>
-    <p>Share this link with your search teams. Anyone who opens it joins the search instantly — no account needed.</p>
-    <div class="share-url" id="share-url-display" onclick="copyShareUrl()"></div>
-    <button class="copy-btn" id="copy-btn" onclick="copyShareUrl()">📋 Copy link</button>
-    <button class="go-btn" onclick="openTracker()">Open tracker →</button>
-  </div>
-</div>
-
-<!-- ═══════════ TRACKER APP ═══════════ -->
-<div id="tracker-app">
-  <header>
-    <div class="hd-left">
-      <h1 id="t-title">🔦 Search Tracker</h1>
-      <div class="sub" id="t-sub">Loading…</div>
-    </div>
-    <div class="conn">
-      <span class="status-dot" id="dot"></span><span id="connText">Connecting…</span>
-      <span class="share-mini" onclick="openShareModal()">Share 🔗</span>
-    </div>
-  </header>
-  <div class="banner" id="cfgBanner"></div>
-  <main>
-    <div id="map-wrap">
-      <div id="map"></div>
-      <div class="legend">
-        <div class="li"><span class="sw" style="background:#f59e0b"></span>To search</div>
-        <div class="li"><span class="sw" style="background:#22c55e"></span>Searched</div>
-        <div class="li"><span class="sw" style="background:#38bdf8"></span>You</div>
+      <span class="flabel" style="margin-top:14px">3 · What was done</span>
+      <div class="agrid">
+        <div class="aopt" data-a="posters"    onclick="togAct(this)"><span class="ai">🪧</span><span class="al">Flyers<br>posted</span></div>
+        <div class="aopt" data-a="businesses" onclick="togAct(this)"><span class="ai">🏪</span><span class="al">Businesses<br>/libraries</span></div>
+        <div class="aopt" data-a="shelters"   onclick="togAct(this)"><span class="ai">🏠</span><span class="al">Shelter<br>orgs</span></div>
+        <div class="aopt" data-a="foot"       onclick="togAct(this)"><span class="ai">🚶</span><span class="al">Searched<br>on foot</span></div>
+        <div class="aopt" data-a="drove"      onclick="togAct(this)"><span class="ai">🚗</span><span class="al">Drove<br>through</span></div>
+        <div class="aopt" data-a="other"      onclick="togAct(this)"><span class="ai">📞</span><span class="al">Called /<br>other</span></div>
       </div>
-    </div>
-    <aside>
-      <div class="tabs">
-        <div class="tab active" data-tab="report">Report</div>
-        <div class="tab" data-tab="todo">To Search (<span id="todoCount">0</span>)</div>
-        <div class="tab" data-tab="log">Activity</div>
+
+      <span class="flabel" style="margin-top:14px">4 · Your name / team</span>
+      <input type="text" id="rName" placeholder="e.g. Team B – Rivera" autocomplete="name"/>
+
+      <span class="flabel">5 · Add photos (optional)</span>
+      <div class="photo-strip" id="rPhotoStrip">
+        <div class="photo-add" onclick="document.getElementById('rPhotoInput').click()">+</div>
       </div>
-      <div class="panel active" id="panel-report">
-        <div class="stats">
-          <div class="stat done"><div class="n" id="sDone">0</div><div class="l">Searched</div></div>
-          <div class="stat todo"><div class="n" id="sTodo">0</div><div class="l">Remaining</div></div>
-          <div class="stat"><div class="n" id="sReports">0</div><div class="l">Reports</div></div>
+      <input type="file" id="rPhotoInput" accept="image/*" multiple onchange="handlePhotoSelect(this,'r')"/>
+      <div class="upload-progress" id="rPhotoProgress"></div>
+
+      <span class="flabel">6 · Notes (optional)</span>
+      <textarea id="rNotes" placeholder="What you found, conditions, who you spoke to…"></textarea>
+
+      <button class="btn" id="submitBtn" onclick="submitReport()">✓ Submit zone report</button>
+    </div>
+
+    <!-- ══ TO DO / OBJECTIVES ══ -->
+    <div class="pane" id="pane-todo">
+      <button class="btn" style="margin-top:0;margin-bottom:12px" onclick="openObjModal()">+ Add search objective</button>
+      <div class="help" style="margin-bottom:10px">Community search objectives — locations others recommend checking. Tap one to view or fly to it on the map.</div>
+      <div id="todoList"></div>
+    </div>
+
+    <!-- ══ PINS / LOCATIONS ══ -->
+    <div class="pane" id="pane-pins">
+      <button class="btn" style="margin-top:0;margin-bottom:12px" onclick="openPinModal()">+ Add location / organization</button>
+      <div id="pinList"></div>
+    </div>
+
+    <!-- ══ LOG ══ -->
+    <div class="pane" id="pane-log" style="padding:0;display:flex;flex-direction:column">
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+
+        <!-- Status filter -->
+        <div class="filter-row">
+          <span class="filter-label">Status</span>
+          <div class="filter-chips">
+            <div class="fchip" data-ftype="status" data-fval="done"   onclick="toggleFilter(this)">✅ Searched</div>
+            <div class="fchip" data-ftype="status" data-fval="active" onclick="toggleFilter(this)">🔍 Active</div>
+            <div class="fchip" data-ftype="status" data-fval="todo"   onclick="toggleFilter(this)">↩️ Re-search</div>
+          </div>
         </div>
-        <form id="reportForm">
-          <label>Step 1 — Select the zone you searched</label>
-          <select id="zonePicker" onchange="onZonePick(this.value)" style="width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:11px;font-size:16px;font-family:inherit;-webkit-appearance:none;appearance:none">
-            <option value="">— Pick a zone from the list —</option>
-          </select>
-          <div class="help" id="zonePickerHint" style="margin-bottom:6px">Or tap any zone on the map, or use GPS below.</div>
 
-          <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
-            <div style="flex:1;height:1px;background:var(--line)"></div>
-            <span style="font-size:11px;color:var(--muted)">or use GPS</span>
-            <div style="flex:1;height:1px;background:var(--line)"></div>
+        <!-- Activity filter -->
+        <div class="filter-row">
+          <span class="filter-label">Type</span>
+          <div class="filter-chips">
+            <div class="fchip" data-ftype="act" data-fval="posters"    onclick="toggleFilter(this)">🪧 Flyers</div>
+            <div class="fchip" data-ftype="act" data-fval="businesses" onclick="toggleFilter(this)">🏪 Business</div>
+            <div class="fchip" data-ftype="act" data-fval="shelters"   onclick="toggleFilter(this)">🏠 Shelter</div>
+            <div class="fchip" data-ftype="act" data-fval="foot"       onclick="toggleFilter(this)">🚶 On foot</div>
+            <div class="fchip" data-ftype="act" data-fval="drove"      onclick="toggleFilter(this)">🚗 Drove</div>
+            <div class="fchip" data-ftype="act" data-fval="other"      onclick="toggleFilter(this)">📞 Called</div>
           </div>
+        </div>
 
-          <div class="geo" style="margin-top:8px">
-            <span>📍</span>
-            <div style="flex:1;min-width:0">
-              <div class="geo-coords" id="geoCoords">Not located yet</div>
-              <div class="help" id="geoZone"></div>
-            </div>
-            <button type="button" class="btn secondary" style="width:auto;margin:0;flex-shrink:0;font-size:13px;padding:8px 12px" id="locateBtn">Locate me</button>
-          </div>
+        <!-- Searcher + Date row -->
+        <div class="filter-row">
+          <span class="filter-label">Who</span>
+          <div class="filter-chips" id="searcherChips"></div>
+        </div>
 
-          <label style="margin-top:14px">Step 2 — Your name / team</label>
-          <input type="text" id="searcherName" placeholder="e.g. Team B – Rivera" autocomplete="name" inputmode="text"/>
-          <label>Step 3 — Landmark or area description (optional)</label>
-          <input type="text" id="areaName" placeholder="e.g. north creek trail, parking lot" inputmode="text"/>
-          <label>Notes (optional)</label>
-          <textarea id="notes" placeholder="What you checked, anything found, conditions…"></textarea>
-          <label style="display:flex;align-items:center;gap:10px;margin-top:12px;cursor:pointer">
-            <input type="checkbox" id="needsRevisit" style="width:20px;height:20px;flex-shrink:0"/>
-            <span style="color:var(--text);font-weight:600;font-size:14px">Flag for re-search</span>
-          </label>
-          <button type="submit" class="btn" id="submitBtn">✓ Record this search</button>
-        </form>
+        <div class="filter-row">
+          <span class="filter-label">Date</span>
+          <input type="date" class="f-date" id="fDateFrom" onchange="applyFilters()" title="From date"/>
+          <span style="font-size:11px;color:var(--muted)">to</span>
+          <input type="date" class="f-date" id="fDateTo" onchange="applyFilters()" title="To date"/>
+          <div class="filter-clear" onclick="clearFilters()">Clear all</div>
+        </div>
+
       </div>
-      <div class="panel" id="panel-todo">
-        <div class="help" style="margin-bottom:10px">Unsearched zones — tap one to center map and pre-fill a report.</div>
-        <div id="todoList"></div>
+
+      <!-- Summary bar -->
+      <div class="log-summary" id="logSummary" style="display:none"></div>
+
+      <!-- Results -->
+      <div id="logList" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px;padding-bottom:max(10px,env(safe-area-inset-bottom))"></div>
+    </div>
+
+    <!-- ══ ME (live location) ══ -->
+    <div class="pane" id="pane-me">
+      <span class="flabel" style="margin-top:0">Your display name</span>
+      <input type="text" id="myName" placeholder="Your name (shown on map)" autocomplete="name"/>
+
+      <span class="flabel" style="margin-top:14px">Share your live location</span>
+      <div class="geobar" style="margin-bottom:8px">
+        <div style="flex:1">
+          <div class="geocoords" id="geoCoords">Not located yet</div>
+          <div class="help" id="geoZone"></div>
+        </div>
+        <button class="btn sec" style="width:auto;margin:0;padding:8px 10px;font-size:12px;flex-shrink:0" id="locateBtn">Locate me</button>
       </div>
-      <div class="panel" id="panel-log">
-        <div id="logList"></div>
-      </div>
-    </aside>
-  </main>
+      <button class="btn" id="shareLocBtn" onclick="startSharingLocation()" style="margin-top:0">📍 Share my location on map</button>
+      <button class="btn danger" id="stopLocBtn" onclick="stopSharingLocation()" style="display:none;margin-top:6px">Stop sharing location</button>
+      <div class="help" style="margin-top:8px">Your location dot updates every 30 seconds while you keep this page open. Others see your name and location in real time.</div>
+    </div>
+  </aside>
 </div>
 
-<!-- Share modal (inside tracker) -->
-<div class="modal-backdrop" id="shareModal">
-  <div class="modal">
-    <h3>🔗 Share this search</h3>
-    <p>Anyone who opens this link joins the search instantly. No account needed.</p>
-    <div class="url-box" id="modal-url"></div>
-    <button class="copy-btn" id="modal-copy-btn" onclick="copyModalUrl()" style="width:100%;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;background:var(--accent2);color:#fff;margin-bottom:10px;min-height:48px">📋 Copy link</button>
-    <button class="modal-close" onclick="closeShareModal()">Close</button>
+<!-- ══ PIN MODAL ══ -->
+<div class="overlay" id="pinOverlay" onclick="closePinModalOutside(event)">
+  <div class="sheet" id="pinSheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closePinModal()">✕</button>
+    <h3 id="pinModalTitle">Add Location / Organization</h3>
+
+    <span class="flabel" style="margin-top:0">Name <span style="color:var(--danger)">*</span></span>
+    <input type="text" id="pinName" placeholder="e.g. East Flatbush Shelter, Canarsie Library"/>
+
+    <span class="flabel">Location <span style="color:var(--danger)">*</span></span>
+    <input type="text" id="pinAddr" placeholder="Address or landmark"/>
+    <div class="help" style="margin-bottom:4px">Or tap the map while this form is open to drop a pin.</div>
+    <div class="geobar" id="pinGeoBar" style="display:none;margin:4px 0 6px">
+      <div class="geocoords" id="pinCoords" style="flex:1"></div>
+    </div>
+    <button class="btn sec" style="margin-top:4px;font-size:13px;padding:9px" onclick="usePinGPS()">📍 Use my GPS location</button>
+
+    <span class="flabel" style="margin-top:12px">Status</span>
+    <div class="status-row" id="pinStatusRow">
+      <div class="sopt" data-s="needs" onclick="pickPinStatus('needs')"><span class="si">❗</span><span class="sl">Needs to<br>be searched</span></div>
+      <div class="sopt" data-s="done"  onclick="pickPinStatus('done')" ><span class="si">✅</span><span class="sl">Has been<br>searched</span></div>
+    </div>
+
+    <!-- shown only when done is selected -->
+    <div id="pinDoneExtra" style="display:none">
+      <span class="flabel">Zone status</span>
+      <div class="status-row" id="pinZoneStatusRow">
+        <div class="sopt" data-s="active" onclick="pickPinZoneStatus('active')"><span class="si">🔍</span><span class="sl">Searching<br>now</span></div>
+        <div class="sopt" data-s="done"   onclick="pickPinZoneStatus('done')"  ><span class="si">✅</span><span class="sl">Searched<br>done</span></div>
+      </div>
+      <span class="flabel">What was done</span>
+      <div class="agrid" id="pinActGrid">
+        <div class="aopt" data-a="posters"    onclick="togPinAct(this)"><span class="ai">🪧</span><span class="al">Flyers</span></div>
+        <div class="aopt" data-a="businesses" onclick="togPinAct(this)"><span class="ai">🏪</span><span class="al">Businesses</span></div>
+        <div class="aopt" data-a="shelters"   onclick="togPinAct(this)"><span class="ai">🏠</span><span class="al">Shelters</span></div>
+        <div class="aopt" data-a="foot"       onclick="togPinAct(this)"><span class="ai">🚶</span><span class="al">On foot</span></div>
+        <div class="aopt" data-a="drove"      onclick="togPinAct(this)"><span class="ai">🚗</span><span class="al">Drove by</span></div>
+        <div class="aopt" data-a="other"      onclick="togPinAct(this)"><span class="ai">📞</span><span class="al">Called</span></div>
+      </div>
+      <span class="flabel">Done by</span>
+      <input type="text" id="pinDoneBy" placeholder="Name / team"/>
+    </div>
+
+    <span class="flabel" style="margin-top:12px">Contact info (optional)</span>
+    <input type="text"  id="pinContact" placeholder="Phone, email, or other contact"/>
+
+    <span class="flabel">Notes (optional)</span>
+    <textarea id="pinNotes" placeholder="Hours, what was found, key contacts…"></textarea>
+
+    <span class="flabel">Photos (optional)</span>
+    <div class="photo-strip" id="pinPhotoStrip">
+      <div class="photo-add" onclick="document.getElementById('pinPhotoInput').click()">+</div>
+    </div>
+    <input type="file" id="pinPhotoInput" accept="image/*" multiple onchange="handlePhotoSelect(this,'pin')"/>
+    <div class="upload-progress" id="pinPhotoProgress"></div>
+
+    <button class="btn" id="pinSubmitBtn" onclick="submitPin()" style="margin-top:14px">Save location</button>
   </div>
+</div>
+
+<!-- ══ OBJECTIVE MODAL ══ -->
+<div class="overlay" id="objOverlay" onclick="if(event.target===this)closeObjModal()">
+  <div class="sheet" id="objSheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeObjModal()">&#x2715;</button>
+    <h3 id="objModalTitle">Add Search Objective</h3>
+
+    <span class="flabel" style="margin-top:0">Name <span style="color:var(--danger)">*</span></span>
+    <input type="text" id="objName" placeholder="e.g. Check East Flatbush Shelter, Canvas Utica Ave"/>
+
+    <span class="flabel">Location <span style="color:var(--danger)">*</span></span>
+    <input type="text" id="objAddr" placeholder="Address, intersection, or landmark"/>
+    <div class="help" style="margin-bottom:4px">Or tap the map while this is open to drop a pin, or use GPS below.</div>
+    <div class="geobar" id="objGeoBar" style="display:none;margin:4px 0 2px">
+      <div class="geocoords" id="objCoords" style="flex:1;font-size:11px;color:var(--accent)"></div>
+    </div>
+    <button class="btn sec" style="margin-top:4px;font-size:13px;padding:9px" onclick="useObjGPS()">&#128205; Use my GPS location</button>
+
+    <span class="flabel" style="margin-top:14px">Contact info (optional)</span>
+    <input type="text" id="objContact" placeholder="Phone, email, or person to reach"/>
+
+    <span class="flabel">Notes (optional)</span>
+    <textarea id="objNotes" placeholder="Why this location? What to look for, hours, any details…" style="min-height:80px"></textarea>
+
+    <span class="flabel">Photos / links (optional)</span>
+    <div class="photo-strip" id="objPhotoStrip">
+      <div class="photo-add" onclick="document.getElementById('objPhotoInput').click()">+</div>
+    </div>
+    <input type="file" id="objPhotoInput" accept="image/*" multiple onchange="handlePhotoSelect(this,'obj')"/>
+    <div class="upload-progress" id="objPhotoProgress"></div>
+    <input type="text" id="objLink" placeholder="Paste a link (Google Maps, website, etc.)" style="margin-top:8px"/>
+
+    <span class="flabel" style="margin-top:14px">Added by (optional)</span>
+    <input type="text" id="objBy" placeholder="Your name or team" autocomplete="name"/>
+
+    <button class="btn" id="objSubmitBtn" onclick="submitObjective()" style="margin-top:14px">&#10003; Save objective</button>
+  </div>
+</div>
+
+<!-- ══ SHARE MODAL ══ -->
+<div class="overlay" id="shareOverlay" onclick="if(event.target===this)closeShare()">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeShare()">✕</button>
+    <h3>Share this search</h3>
+    <p style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:12px">Anyone with this link can see the map and submit reports.</p>
+    <div style="background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:10px;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--accent);word-break:break-all;margin-bottom:10px;cursor:pointer" id="shareUrl" onclick="copyUrl()"></div>
+    <button class="btn" id="copyBtn" onclick="copyUrl()">📋 Copy link</button>
+    <button class="btn sec" onclick="closeShare()" style="margin-top:6px">Close</button>
+  </div>
+</div>
+
+<!-- ══ IMAGE VIEWER ══ -->
+<div id="imgViewer" onclick="closeImg()">
+  <img id="imgViewerImg" src="" alt=""/>
+  <button onclick="closeImg()">Close</button>
 </div>
 
 <script>
-/* ═══════════════════════════════════════════
-   FIREBASE CONFIG
-═══════════════════════════════════════════ */
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDl7O0eI8mfebjVMwZ93HEsBCDyIlsX4eE",
-  authDomain: "search-tracker-a9651.firebaseapp.com",
-  projectId: "search-tracker-a9651",
-  storageBucket: "search-tracker-a9651.firebasestorage.app",
-  messagingSenderId: "844594849020",
-  appId: "1:844594849020:web:d705c9a3ea45f16a472379"
+/* ══════════════ CONFIG ══════════════ */
+const CASE = {
+  id:'julia-aurelus',
+  name:'Julia Aurelus',
+  address:'Ralph Ave & Ave O, Brooklyn NY',
+  lat:40.6210, lng:-73.9195,
+  // Grid covers all 5 NYC boroughs
+  // bbox: 40.477-40.915 lat, -74.26 to -73.70 lng
+  bboxLatMin:40.477, bboxLatMax:40.920,
+  bboxLngMin:-74.260, bboxLngMax:-73.690,
+  gridStep:805,   // 0.5 mile per zone (quarter mile was too many for mobile)
+  // Search focus radius for initial map view
+  focusRadius:8047
 };
 
-firebase.initializeApp(FIREBASE_CONFIG);
-const db = firebase.firestore();
+// Per-borough bounding boxes — covers all 5 NYC boroughs correctly
+const BOROUGHS = [
+  {n:'Manhattan',    la:40.700,lb:40.883,lo:-74.020,lh:-73.907},
+  {n:'Brooklyn',     la:40.570,lb:40.740,lo:-74.042,lh:-73.834},
+  {n:'Queens',       la:40.541,lb:40.800,lo:-73.963,lh:-73.700},
+  {n:'Bronx',        la:40.785,lb:40.915,lo:-73.934,lh:-73.765},
+  {n:'Staten Island',la:40.477,lb:40.651,lo:-74.259,lh:-74.034},
+];
 
-/* ═══════════════════════════════════════════
-   ROUTING — check URL for ?case=ID on load
-═══════════════════════════════════════════ */
-let ACTIVE_CASE = null; // the case config object
+// Large water bodies to exclude [lat, lng, radiusMeters]
+const WATER_BODIES = [
+  [40.618,-73.835,6000],  // Jamaica Bay
+  [40.640,-74.040,4000],  // Upper NY Bay
+  [40.510,-74.070,8000],  // Lower NY Bay / Raritan Bay
+  [40.820,-73.760,5000],  // Long Island Sound
+  [40.772,-73.840,2000],  // Flushing Bay
+  [40.500,-74.150,5000],  // Raritan Bay / SI south shore
+];
 
-window.addEventListener('DOMContentLoaded', () => {
-  const params = new URLSearchParams(window.location.search);
-  const caseId = params.get('case');
-  if (caseId) {
-    loadCase(caseId);
-  }
-  // else: show landing page (already visible)
-});
-
-/* ═══════════════════════════════════════════
-   GEOCODING — convert address → lat/lng
-═══════════════════════════════════════════ */
-async function geocode(address) {
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`;
-  const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
-  const data = await res.json();
-  if (!data.length) throw new Error('Address not found. Try adding the city and state.');
-  return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+function inWater(lat, lng) {
+  return WATER_BODIES.some(([wlat,wlng,r]) => distM({lat,lng},{lat:wlat,lng:wlng}) < r);
 }
 
-/* ═══════════════════════════════════════════
-   CREATE CASE
-═══════════════════════════════════════════ */
-let pendingCaseUrl = '';
-
-async function createCase() {
-  const name      = document.getElementById('l-name').value.trim();
-  const addr      = document.getElementById('l-addr').value.trim();
-  const radius    = parseInt(document.getElementById('l-radius').value);
-  const grid      = parseInt(document.getElementById('l-grid').value);
-  const organizer = document.getElementById('l-organizer').value.trim();
-
-  const errEl = document.getElementById('l-err');
-  errEl.classList.remove('show');
-
-  if (!name) { showErr(errEl, 'Please enter the missing person\'s name.'); return; }
-  if (!addr) { showErr(errEl, 'Please enter a last-seen address.'); return; }
-
-  const btn = document.getElementById('l-submit');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Looking up address…';
-
-  let coords;
-  try {
-    coords = await geocode(addr);
-  } catch(e) {
-    showErr(errEl, e.message);
-    btn.disabled = false;
-    btn.innerHTML = '🔦 Create Search Tracker';
-    return;
-  }
-
-  btn.innerHTML = '<span class="spinner"></span>Creating search…';
-
-  // Generate a short human-friendly ID
-  const caseId = name.toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').slice(0,20)
-    + '-' + Math.random().toString(36).slice(2,7);
-
-  const caseDoc = {
-    id: caseId,
-    personName: name,
-    address: addr,
-    lat: coords.lat,
-    lng: coords.lng,
-    radius,
-    grid,
-    organizer: organizer || 'Anonymous',
-    created: new Date().toISOString()
-  };
-
-  try {
-    await db.collection('cases').doc(caseId).set(caseDoc);
-  } catch(e) {
-    showErr(errEl, 'Could not save to database: ' + e.message);
-    btn.disabled = false;
-    btn.innerHTML = '🔦 Create Search Tracker';
-    return;
-  }
-
-  const url = window.location.origin + window.location.pathname + '?case=' + caseId;
-  pendingCaseUrl = url;
-  ACTIVE_CASE = caseDoc;
-
-  document.getElementById('share-url-display').textContent = url;
-  document.getElementById('landing').style.display = 'none';
-  document.getElementById('share-screen').classList.add('show');
-
-  btn.disabled = false;
-  btn.innerHTML = '🔦 Create Search Tracker';
+function pointInNYC(lat, lng) {
+  // Must be in at least one borough bbox
+  const inBorough = BOROUGHS.some(b => lat>=b.la && lat<=b.lb && lng>=b.lo && lng<=b.lh);
+  if (!inBorough) return false;
+  // And not in a major water body
+  return !inWater(lat, lng);
 }
 
-function openTracker() {
-  document.getElementById('share-screen').classList.remove('show');
-  // Push the case ID into the URL so sharing/refreshing works
-  history.pushState({}, '', '?case=' + ACTIVE_CASE.id);
-  startTracker(ACTIVE_CASE);
-}
+const ACT = {posters:'🪧',businesses:'🏪',shelters:'🏠',foot:'🚶',drove:'🚗',other:'📞'};
 
-/* ═══════════════════════════════════════════
-   JOIN CASE
-═══════════════════════════════════════════ */
-async function joinCase() {
-  const raw = document.getElementById('l-code').value.trim();
-  const errEl = document.getElementById('j-err');
-  errEl.classList.remove('show');
-  if (!raw) { showErr(errEl, 'Paste a search link or case code.'); return; }
+/* ══════════════ FIREBASE ══════════════ */
+const FB = {
+  apiKey:"AIzaSyDl7O0eI8mfebjVMwZ93HEsBCDyIlsX4eE",
+  authDomain:"search-tracker-a9651.firebaseapp.com",
+  projectId:"search-tracker-a9651",
+  storageBucket:"search-tracker-a9651.firebasestorage.app",
+  messagingSenderId:"844594849020",
+  appId:"1:844594849020:web:d705c9a3ea45f16a472379"
+};
+firebase.initializeApp(FB);
+const db      = firebase.firestore(); // Rules must allow: cases, search_reports, pins, live_locations, objectives
+const storage = firebase.storage();
 
-  // Extract case ID from a full URL or treat raw value as ID
-  let caseId = raw;
-  try {
-    const u = new URL(raw);
-    caseId = new URLSearchParams(u.search).get('case') || raw;
-  } catch(e) { /* not a URL, use raw */ }
+/* ══════════════ STATE ══════════════ */
+let map, ZONES=[], zoneLayers={}, zoneStatus={}, reports=[], pins=[], objectives=[], people={};
+let myPos=null, myMarker=null, myPeopleId=null, locationInterval=null;
+let selectedZone=null, selStatus=null, selActs=new Set();
+// Log filter state
+const logFilters={status:new Set(), act:new Set(), searchers:new Set(), dateFrom:null, dateTo:null};
+let pinLat=null, pinLng=null, pinSelStatus=null, pinZoneStatus=null, pinSelActs=new Set();
+let pendingPhotoFiles={r:[],pin:[],obj:[]};
+let droppingPinMode=false;
+const peopleMarkers={}, pinMarkers={};
 
-  loadCase(caseId.trim());
+/* ══════════════ GEOMETRY ══════════════ */
+const MPD=111320;
+function mpdLng(lat){return 111320*Math.cos(lat*Math.PI/180);}
+function distM(a,b){
+  const dy=(b.lat-a.lat)*MPD, dx=(b.lng-a.lng)*mpdLng(a.lat);
+  return Math.sqrt(dy*dy+dx*dx);
 }
-
-async function loadCase(caseId) {
-  // Show a loading state on landing if it's still visible
-  const errEl = document.getElementById('j-err');
-  try {
-    const snap = await db.collection('cases').doc(caseId).get();
-    if (!snap.exists) {
-      showErr(errEl, 'Search not found. Check the link and try again.');
-      return;
-    }
-    ACTIVE_CASE = snap.data();
-    history.pushState({}, '', '?case=' + caseId);
-    document.getElementById('landing').style.display = 'none';
-    startTracker(ACTIVE_CASE);
-  } catch(e) {
-    showErr(errEl, 'Could not load search: ' + e.message);
-  }
+function zoneForPt(p){
+  let best=null,bd=Infinity;
+  ZONES.forEach(z=>{const d=distM(z.center,p);if(d<bd){bd=d;best=z;}});
+  // Accept if within 2x gridStep of nearest zone center (generous city-wide match)
+  return best&&bd<=(CASE.gridStep*2)?best.id:null;
 }
-
-/* ═══════════════════════════════════════════
-   SHARE HELPERS
-═══════════════════════════════════════════ */
-function getCaseUrl() {
-  return window.location.origin + window.location.pathname + '?case=' + ACTIVE_CASE.id;
-}
-function copyShareUrl() {
-  const url = pendingCaseUrl || getCaseUrl();
-  navigator.clipboard.writeText(url).then(() => {
-    const btn = document.getElementById('copy-btn');
-    btn.textContent = '✅ Copied!';
-    btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = '📋 Copy link'; btn.classList.remove('copied'); }, 2500);
-  });
-}
-function openShareModal() {
-  document.getElementById('modal-url').textContent = getCaseUrl();
-  document.getElementById('shareModal').classList.add('show');
-}
-function closeShareModal() {
-  document.getElementById('shareModal').classList.remove('show');
-}
-function copyModalUrl() {
-  navigator.clipboard.writeText(getCaseUrl()).then(() => {
-    const btn = document.getElementById('modal-copy-btn');
-    btn.textContent = '✅ Copied!';
-    setTimeout(() => { btn.textContent = '📋 Copy link'; }, 2500);
-  });
-}
-document.getElementById('shareModal').addEventListener('click', e => {
-  if (e.target === document.getElementById('shareModal')) closeShareModal();
-});
-
-/* ═══════════════════════════════════════════
-   TRACKER — geometry
-═══════════════════════════════════════════ */
-const M_PER_DEG_LAT = 111320;
-function mPerDegLng(lat) { return 111320 * Math.cos(lat * Math.PI / 180); }
-
-let ZONES = [], zoneLayers = {}, zoneStatus = {};
-
-function buildGrid(cfg) {
-  zoneStatus = {};
-  const half = cfg.radius, step = (2 * half) / cfg.grid;
-  const grid = [];
-  const center = { lat: cfg.lat, lng: cfg.lng };
-  for (let r = 0; r < cfg.grid; r++) {
-    for (let c = 0; c < cfg.grid; c++) {
-      const id = `Z${r+1}-${c+1}`;
-      const y0 = half - r*step, y1 = half - (r+1)*step;
-      const x0 = -half + c*step, x1 = -half + (c+1)*step;
-      const latN = center.lat + y0/M_PER_DEG_LAT;
-      const latS = center.lat + y1/M_PER_DEG_LAT;
-      const lngW = center.lng + x0/mPerDegLng(center.lat);
-      const lngE = center.lng + x1/mPerDegLng(center.lat);
-      const cellCenter = { lat:(latN+latS)/2, lng:(lngW+lngE)/2 };
-      if (distM(center, cellCenter) <= half) {
-        grid.push({ id, bounds:[[latS,lngW],[latN,lngE]], center:cellCenter });
-        zoneStatus[id] = { searched:false, count:0 };
+function buildGrid(){
+  zoneStatus={};
+  const {bboxLatMin,bboxLatMax,bboxLngMin,bboxLngMax,gridStep}=CASE;
+  // Build a rectangular grid covering all 5 NYC boroughs
+  const latStepDeg = gridStep / MPD;
+  const lngStepDeg = gridStep / mpdLng(40.696); // use NYC center lat
+  const grid=[]; let ri=1;
+  for(let latS=bboxLatMin; latS<bboxLatMax; latS+=latStepDeg){
+    const latN=latS+latStepDeg;
+    let ci=1, rowHasZone=false;
+    for(let lngW=bboxLngMin; lngW<bboxLngMax; lngW+=lngStepDeg){
+      const lngE=lngW+lngStepDeg;
+      const cc={lat:(latS+latN)/2, lng:(lngW+lngE)/2};
+      // Only include zones that are roughly within NYC land mass
+      if(pointInNYC(cc.lat, cc.lng)){
+        const id=`Z${ri}-${ci}`;
+        grid.push({id,bounds:[[latS,lngW],[latN,lngE]],center:cc});
+        zoneStatus[id]={status:'todo',count:0,acts:[]};
+        ci++; rowHasZone=true;
       }
     }
+    if(rowHasZone) ri++;
   }
   return grid;
 }
 
-function distM(a, b) {
-  const dLat = (b.lat-a.lat)*M_PER_DEG_LAT;
-  const dLng = (b.lng-a.lng)*mPerDegLng(a.lat);
-  return Math.sqrt(dLat*dLat + dLng*dLng);
-}
+/* ══════════════ MAP INIT ══════════════ */
+function initMap(){
+  map=L.map('map',{zoomControl:false}).setView([40.700,-73.990],11); // NYC overview
+  L.control.zoom({position:'bottomright'}).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  // Search center marker only (no radius circle - coverage is city-wide)
+  L.circle([CASE.lat,CASE.lng],{radius:400,color:'#38bdf8',weight:2,fillColor:'#38bdf8',fillOpacity:.1,dashArray:'4 4'}).addTo(map).bindPopup('<b>Search center</b><br>Ralph Ave & Ave O');
+  L.marker([CASE.lat,CASE.lng]).addTo(map).bindPopup('<b>Last seen</b><br>'+CASE.address);
 
-function zoneForPoint(p, cfg) {
-  let best=null, bd=Infinity;
-  for (const z of ZONES) { const d=distM(z.center,p); if(d<bd){bd=d;best=z;} }
-  const center = { lat:cfg.lat, lng:cfg.lng };
-  return (best && distM(center,p)<=cfg.radius) ? best.id : null;
-}
-
-/* ═══════════════════════════════════════════
-   TRACKER — map + state
-═══════════════════════════════════════════ */
-let map=null, reports=[], myMarker=null, myPos=null;
-
-function startTracker(cfg) {
-  document.getElementById('tracker-app').classList.add('show');
-  document.body.classList.add('in-tracker');
-
-  document.getElementById('t-title').textContent = '🔦 ' + cfg.personName;
-  document.getElementById('t-sub').textContent = cfg.address;
-  document.title = 'Find ' + cfg.personName + ' — Search Tracker';
-
-  // Init map
-  if (map) { map.remove(); map = null; }
-  zoneLayers = {}; reports = [];
-
-  map = L.map('map', { zoomControl:false }).setView([cfg.lat, cfg.lng], 11);
-  L.control.zoom({ position:'bottomright' }).addTo(map);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom:19, attribution:'© OpenStreetMap'
-  }).addTo(map);
-  L.circle([cfg.lat,cfg.lng], { radius:cfg.radius, color:'#38bdf8', weight:2, fill:false, dashArray:'6 6' }).addTo(map);
-  L.marker([cfg.lat,cfg.lng]).addTo(map).bindPopup('Last seen: ' + cfg.address);
-
-  ZONES = buildGrid(cfg);
-  ZONES.forEach(z => {
-    const rect = L.rectangle(z.bounds, { color:'#f59e0b', weight:1, fillOpacity:.18, fillColor:'#f59e0b' });
-    rect.on('click', () => selectZone(z.id));
-    rect.addTo(map);
-    zoneLayers[z.id] = rect;
+  ZONES=buildGrid();
+  renderTodo(); // show all zones immediately before Firebase loads
+  ZONES.forEach(z=>{
+    const r=L.rectangle(z.bounds,{color:'#f97316',weight:1,fillColor:'#f97316',fillOpacity:.2});
+    r.on('click',()=>selectZoneFromMap(z.id));
+    r.addTo(map);
+    zoneLayers[z.id]=r;
   });
-  const b = L.latLngBounds(ZONES.flatMap(z => z.bounds));
-  if (b.isValid()) map.fitBounds(b.pad(0.1));
-  setTimeout(() => map && map.invalidateSize(), 300);
+  // Fit to full NYC borough bounds
+  map.fitBounds([[40.477,-74.260],[40.920,-73.690]]);
 
-  renderAll();
-  populateZonePicker();
-  initBackend(cfg);
-}
-
-function paintZone(id) {
-  const rect = zoneLayers[id]; if (!rect) return;
-  const st = zoneStatus[id];
-  const col = st.searched ? '#22c55e' : '#f59e0b';
-  rect.setStyle({ color:col, fillColor:col, fillOpacity:st.searched?.32:.18 });
-  rect.bindPopup(`<b>${id}</b><br>${st.searched
-    ? 'Searched (' + st.count + ' report' + (st.count>1?'s':'') + ')'
-    : 'Not yet searched'}`);
-}
-
-function selectZone(id) {
-  const z = ZONES.find(x => x.id===id); if (!z) return;
-  map.panTo(z.center);
-  document.querySelector('[data-tab="report"]').click();
-  const a = document.getElementById('areaName');
-  a.value = a.value || ('Zone ' + id);
-  a.dataset.zone = id;
-  document.getElementById('geoZone').textContent = 'Targeting zone ' + id;
-  zoneLayers[id].openPopup();
-}
-
-/* ═══════════════════════════════════════════
-   TRACKER — geolocation
-═══════════════════════════════════════════ */
-/* ═══════════════════════════════════════════
-   TRACKER — zone picker dropdown
-═══════════════════════════════════════════ */
-function populateZonePicker() {
-  const sel = document.getElementById('zonePicker');
-  sel.innerHTML = '<option value="">— Pick a zone from the list —</option>';
-  ZONES.forEach(z => {
-    const searched = zoneStatus[z.id] && zoneStatus[z.id].searched;
-    const opt = document.createElement('option');
-    opt.value = z.id;
-    opt.textContent = z.id + (searched ? ' ✓ searched' : '');
-    sel.appendChild(opt);
+  // Allow clicking map to drop pin when pin modal is open
+  map.on('click',e=>{
+    if(document.getElementById('pinOverlay').classList.contains('on')){
+      pinLat=e.latlng.lat; pinLng=e.latlng.lng;
+      document.getElementById('pinCoords').textContent=pinLat.toFixed(5)+', '+pinLng.toFixed(5);
+      document.getElementById('pinGeoBar').style.display='flex';
+      document.getElementById('pinAddr').placeholder='Location picked on map';
+    }
+    if(map._objDropMode&&document.getElementById('objOverlay').classList.contains('on')){
+      objLat=e.latlng.lat; objLng=e.latlng.lng;
+      document.getElementById('objCoords').textContent=objLat.toFixed(5)+', '+objLng.toFixed(5);
+      document.getElementById('objGeoBar').style.display='flex';
+      document.getElementById('objAddr').placeholder='Location picked on map';
+    }
   });
+
+  setTimeout(()=>map&&map.invalidateSize(),400);
 }
 
-function onZonePick(id) {
-  if (!id) return;
-  const z = ZONES.find(x => x.id === id); if (!z) return;
-  map.panTo(z.center);
-  const a = document.getElementById('areaName');
-  a.value = a.value || ('Zone ' + id);
-  a.dataset.zone = id;
-  // Flash the selected zone blue briefly
-  const rect = zoneLayers[id];
-  if (rect) {
-    rect.setStyle({ weight: 3, color: '#38bdf8' });
-    setTimeout(() => paintZone(id), 1200);
-    rect.openPopup();
+/* ══════════════ ZONE PAINTING ══════════════ */
+const zoneActMarkers={};
+function zoneCol(s){return s==='done'?'#22c55e':s==='active'?'#eab308':'#f97316';}
+function paintZone(id){
+  const r=zoneLayers[id]; if(!r)return;
+  const st=zoneStatus[id]||{status:'todo',acts:[]};
+  const col=zoneCol(st.status);
+  const sel=(id===selectedZone);
+  r.setStyle({color:sel?'#38bdf8':col,weight:sel?3:1,fillColor:col,fillOpacity:st.status==='todo'?.18:.30});
+  const actsHtml=st.acts&&st.acts.length?'<br>'+st.acts.map(a=>ACT[a]||'').join(''):'';
+  r.bindPopup(`<b>${id}</b> — ${{todo:'Not searched',active:'Being searched',done:'Searched'}[st.status]}${actsHtml}${st.count?' ('+st.count+' report'+(st.count>1?'s':'')+')':(``)} `);
+  // activity icon marker
+  if(zoneActMarkers[id]){map.removeLayer(zoneActMarkers[id]);delete zoneActMarkers[id];}
+  if(st.acts&&st.acts.length){
+    const z=ZONES.find(x=>x.id===id);
+    if(z){
+      const ic=st.acts.map(a=>ACT[a]||'').join('');
+      zoneActMarkers[id]=L.marker(z.center,{
+        icon:L.divIcon({className:'',html:`<div style="font-size:11px;background:rgba(13,20,38,.9);border:1px solid #334155;border-radius:5px;padding:1px 4px;white-space:nowrap;pointer-events:none">${ic}</div>`,iconAnchor:[0,8]}),
+        interactive:false,zIndexOffset:-100
+      }).addTo(map);
+    }
   }
-  document.getElementById('geoZone').textContent = '';
-  const hint = document.getElementById('zonePickerHint');
-  hint.textContent = 'Zone ' + id + ' selected — highlighted on map above';
-  hint.style.color = 'var(--accent)';
 }
 
-function locate() {
-  if (!navigator.geolocation) { alert('Geolocation not supported on this device.'); return; }
-  document.getElementById('geoCoords').textContent = 'Locating…';
-  navigator.geolocation.getCurrentPosition(pos => {
-    myPos = { lat:pos.coords.latitude, lng:pos.coords.longitude };
-    document.getElementById('geoCoords').textContent =
-      myPos.lat.toFixed(5) + ', ' + myPos.lng.toFixed(5) + ' (±' + Math.round(pos.coords.accuracy) + 'm)';
-    const zid = zoneForPoint(myPos, ACTIVE_CASE);
-    document.getElementById('geoZone').textContent = zid ? 'Inside zone ' + zid : 'Outside search radius';
-    if (myMarker) map.removeLayer(myMarker);
-    myMarker = L.circleMarker([myPos.lat,myPos.lng], { radius:8, color:'#38bdf8', fillColor:'#38bdf8', fillOpacity:.9 }).addTo(map);
+function selectZoneFromMap(id){
+  const prev=selectedZone; selectedZone=id;
+  if(prev)paintZone(prev);
+  paintZone(id);
+  document.querySelector('[data-pane="report"]').click();
+  document.getElementById('zonePicker').value=id;
+  document.getElementById('zoneHint').textContent='Zone '+id+' selected ✓';
+  document.getElementById('zoneHint').style.color='var(--accent)';
+  const z=ZONES.find(x=>x.id===id);
+  if(z)map.panTo(z.center);
+  zoneLayers[id]&&zoneLayers[id].openPopup();
+  const cur=zoneStatus[id];
+  if(cur&&cur.status!=='todo')pickStatus(cur.status);
+}
+
+function onZonePick(id){
+  if(!id){selectedZone=null;return;}
+  selectZoneFromMap(id);
+}
+
+/* ══════════════ STATUS / ACT PICKERS ══════════════ */
+function pickStatus(s){
+  selStatus=s;
+  document.querySelectorAll('#pane-report .sopt').forEach(el=>{
+    el.className='sopt'+(el.dataset.s===s?' a-'+s:'');
+  });
+}
+function togAct(el){
+  const a=el.dataset.a;
+  if(selActs.has(a)){selActs.delete(a);el.classList.remove('on');}
+  else{selActs.add(a);el.classList.add('on');}
+}
+
+/* ══════════════ GEOLOCATION (Me tab) ══════════════ */
+document.getElementById('locateBtn').addEventListener('click',doLocate);
+function doLocate(cb){
+  if(!navigator.geolocation){alert('Geolocation not supported.');return;}
+  document.getElementById('geoCoords').textContent='Locating…';
+  navigator.geolocation.getCurrentPosition(pos=>{
+    myPos={lat:pos.coords.latitude,lng:pos.coords.longitude};
+    document.getElementById('geoCoords').textContent=
+      myPos.lat.toFixed(5)+', '+myPos.lng.toFixed(5)+' (±'+Math.round(pos.coords.accuracy)+'m)';
+    const zid=zoneForPt(myPos);
+    document.getElementById('geoZone').textContent=zid?'In zone '+zid:'Outside radius';
+    if(myMarker)map.removeLayer(myMarker);
+    myMarker=L.circleMarker([myPos.lat,myPos.lng],{radius:8,color:'#38bdf8',fillColor:'#38bdf8',fillOpacity:.9,zIndexOffset:1000}).addTo(map);
+    myMarker.bindPopup('📍 You');
     map.panTo(myPos);
     renderTodo();
-  }, err => {
-    const msgs = { 1:'Permission denied — allow location in browser settings.', 2:'Position unavailable. Try outside.', 3:'Timed out. Try again.' };
-    document.getElementById('geoCoords').textContent = 'Location unavailable';
-    document.getElementById('geoZone').textContent = msgs[err.code] || err.message;
-  }, { enableHighAccuracy:true, timeout:15000, maximumAge:30000 });
+    if(typeof cb==='function')cb();
+  },err=>{
+    const m={1:'Permission denied.',2:'Unavailable.',3:'Timed out.'};
+    document.getElementById('geoCoords').textContent='Unavailable';
+    document.getElementById('geoZone').textContent=m[err.code]||err.message;
+  },{enableHighAccuracy:true,timeout:15000,maximumAge:20000});
 }
-document.getElementById('locateBtn').addEventListener('click', locate);
 
-/* ═══════════════════════════════════════════
-   TRACKER — Firebase backend
-═══════════════════════════════════════════ */
-let unsubscribe = null;
+/* ══════════════ LIVE LOCATION SHARING ══════════════ */
+function startSharingLocation(){
+  const name=document.getElementById('myName').value.trim();
+  if(!name){alert('Enter your name first so others can see who you are.');return;}
+  if(!myPeopleId)myPeopleId='u-'+Math.random().toString(36).slice(2,9);
+  doLocate(()=>pushMyLocation(name));
+  locationInterval=setInterval(()=>pushMyLocation(name),30000);
+  document.getElementById('shareLocBtn').style.display='none';
+  document.getElementById('stopLocBtn').style.display='block';
+}
+function stopSharingLocation(){
+  clearInterval(locationInterval);locationInterval=null;
+  if(myPeopleId)db.collection('live_locations').doc(myPeopleId).delete();
+  document.getElementById('shareLocBtn').style.display='block';
+  document.getElementById('stopLocBtn').style.display='none';
+}
+function pushMyLocation(name){
+  if(!myPos)return;
+  db.collection('live_locations').doc(myPeopleId).set({
+    case_id:CASE.id,name,lat:myPos.lat,lng:myPos.lng,
+    updated:new Date().toISOString()
+  });
+}
+// Clean up on unload
+window.addEventListener('beforeunload',()=>{
+  if(myPeopleId)db.collection('live_locations').doc(myPeopleId).delete();
+});
 
-function initBackend(cfg) {
-  if (unsubscribe) { unsubscribe(); unsubscribe = null; }
-  unsubscribe = db.collection('search_reports')
-    .where('case_id', '==', cfg.id)
-    .onSnapshot(snap => {
+/* ══════════════ PHOTO HANDLING ══════════════ */
+function handlePhotoSelect(input,ctx){
+  const files=Array.from(input.files);
+  pendingPhotoFiles[ctx]=[...(pendingPhotoFiles[ctx]||[]),...files];
+  const strip=document.getElementById(ctx+'PhotoStrip');
+  files.forEach(f=>{
+    const url=URL.createObjectURL(f);
+    const img=document.createElement('img');
+    img.src=url;img.className='photo-thumb';
+    strip.insertBefore(img,strip.lastElementChild);
+  });
+  input.value='';
+}
+
+async function uploadPhotos(ctx,folder){
+  const files=pendingPhotoFiles[ctx]||[];
+  if(!files.length)return[];
+  const prog=document.getElementById(ctx+'PhotoProgress');
+  prog.textContent='Uploading '+files.length+' photo(s)…';
+  const urls=[];
+  for(let i=0;i<files.length;i++){
+    const f=files[i];
+    const ref=storage.ref(`${folder}/${Date.now()}-${f.name}`);
+    await ref.put(f);
+    urls.push(await ref.getDownloadURL());
+    prog.textContent=`Uploaded ${i+1}/${files.length}…`;
+  }
+  pendingPhotoFiles[ctx]=[];
+  prog.textContent='';
+  return urls;
+}
+
+function clearPhotoStrip(ctx){
+  const strip=document.getElementById(ctx+'PhotoStrip');
+  Array.from(strip.querySelectorAll('.photo-thumb')).forEach(el=>el.remove());
+}
+
+/* ══════════════ SUBMIT ZONE REPORT ══════════════ */
+async function submitReport(){
+  if(!selectedZone){alert('Select a zone first (tap map or dropdown).');return;}
+  if(!selStatus){alert('Select a zone status.');return;}
+  const name=document.getElementById('rName').value.trim()||'Anonymous';
+  const note=document.getElementById('rNotes').value.trim();
+  const btn=document.getElementById('submitBtn');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Saving…';
+
+  let photoUrls=[];
+  try{photoUrls=await uploadPhotos('r',`reports/${CASE.id}`);}catch(e){console.warn(e);}
+
+  const rec={
+    case_id:CASE.id,zone_id:selectedZone,status:selStatus,
+    activities:[...selActs],searcher:name,notes:note,
+    photos:photoUrls,lat:myPos?myPos.lat:null,lng:myPos?myPos.lng:null,
+    created_at:new Date().toISOString()
+  };
+  try{await db.collection('search_reports').add(rec);}
+  catch(err){alert('Could not save: '+err.message);btn.disabled=false;btn.textContent='✓ Submit zone report';return;}
+
+  // Reset
+  document.getElementById('rName').value='';
+  document.getElementById('rNotes').value='';
+  clearPhotoStrip('r');
+  selectedZone=null;selStatus=null;selActs=new Set();
+  document.querySelectorAll('#pane-report .sopt').forEach(el=>el.className='sopt');
+  document.querySelectorAll('#pane-report .aopt').forEach(el=>el.classList.remove('on'));
+  document.getElementById('zonePicker').value='';
+  document.getElementById('zoneHint').textContent='Report saved ✓';
+  document.getElementById('zoneHint').style.color='var(--done)';
+  btn.disabled=false;btn.textContent='✓ Submit zone report';
+}
+
+/* ══════════════ PIN MODAL ══════════════ */
+function openPinModal(){
+  pinLat=null;pinLng=null;pinSelStatus=null;pinZoneStatus=null;pinSelActs=new Set();
+  pendingPhotoFiles.pin=[];
+  document.getElementById('pinName').value='';
+  document.getElementById('pinAddr').value='';
+  document.getElementById('pinContact').value='';
+  document.getElementById('pinNotes').value='';
+  document.getElementById('pinDoneBy').value='';
+  document.getElementById('pinGeoBar').style.display='none';
+  document.getElementById('pinDoneExtra').style.display='none';
+  document.querySelectorAll('#pinStatusRow .sopt').forEach(el=>el.className='sopt');
+  document.querySelectorAll('#pinZoneStatusRow .sopt').forEach(el=>el.className='sopt');
+  document.querySelectorAll('#pinActGrid .aopt').forEach(el=>el.classList.remove('on'));
+  clearPhotoStrip('pin');
+  document.getElementById('pinOverlay').classList.add('on');
+}
+function closePinModal(){document.getElementById('pinOverlay').classList.remove('on');}
+function closePinModalOutside(e){if(e.target===document.getElementById('pinOverlay'))closePinModal();}
+
+function usePinGPS(){
+  doLocate(()=>{
+    if(myPos){
+      pinLat=myPos.lat;pinLng=myPos.lng;
+      document.getElementById('pinCoords').textContent=pinLat.toFixed(5)+', '+pinLng.toFixed(5);
+      document.getElementById('pinGeoBar').style.display='flex';
+    }
+  });
+}
+
+function pickPinStatus(s){
+  pinSelStatus=s;
+  document.querySelectorAll('#pinStatusRow .sopt').forEach(el=>{el.className='sopt'+(el.dataset.s===s?' a-'+s:'');});
+  document.getElementById('pinDoneExtra').style.display=s==='done'?'block':'none';
+}
+function pickPinZoneStatus(s){
+  pinZoneStatus=s;
+  document.querySelectorAll('#pinZoneStatusRow .sopt').forEach(el=>{el.className='sopt'+(el.dataset.s===s?' a-'+s:'');});
+}
+function togPinAct(el){
+  const a=el.dataset.a;
+  if(pinSelActs.has(a)){pinSelActs.delete(a);el.classList.remove('on');}
+  else{pinSelActs.add(a);el.classList.add('on');}
+}
+
+async function submitPin(){
+  const name=document.getElementById('pinName').value.trim();
+  const addr=document.getElementById('pinAddr').value.trim();
+  if(!name){alert('Name is required.');return;}
+  if(!pinLat&&!addr){alert('Please provide a location (GPS or address).');return;}
+
+  const btn=document.getElementById('pinSubmitBtn');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Saving…';
+
+  // Geocode address if no GPS coords
+  if(!pinLat&&addr){
+    try{
+      const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addr+', Brooklyn NY')}`);
+      const d=await r.json();
+      if(d.length){pinLat=parseFloat(d[0].lat);pinLng=parseFloat(d[0].lon);}
+      else{alert('Could not find that address. Try being more specific or use GPS.');btn.disabled=false;btn.textContent='Save location';return;}
+    }catch(e){alert('Geocoding failed: '+e.message);btn.disabled=false;btn.textContent='Save location';return;}
+  }
+
+  let photoUrls=[];
+  try{photoUrls=await uploadPhotos('pin',`pins/${CASE.id}`);}catch(e){console.warn(e);}
+
+  const rec={
+    case_id:CASE.id,name,address:addr,
+    lat:pinLat,lng:pinLng,
+    status:pinSelStatus||'needs',
+    zone_status:pinZoneStatus,
+    activities:[...pinSelActs],
+    done_by:document.getElementById('pinDoneBy').value.trim(),
+    contact:document.getElementById('pinContact').value.trim(),
+    notes:document.getElementById('pinNotes').value.trim(),
+    photos:photoUrls,
+    created_at:new Date().toISOString()
+  };
+
+  try{await db.collection('pins').add(rec);}
+  catch(err){alert('Could not save: '+err.message);btn.disabled=false;btn.textContent='Save location';return;}
+
+  closePinModal();
+  btn.disabled=false;btn.textContent='Save location';
+}
+
+/* ══════════════ FIREBASE LISTENERS ══════════════ */
+function initBackend(){
+  // Reports
+  db.collection('search_reports').where('case_id','==',CASE.id)
+    .onSnapshot(snap=>{
       setConn(true);
-      reports = [];
-      zoneStatus = {};
-      ZONES.forEach(z => zoneStatus[z.id] = { searched:false, count:0 });
-      snap.forEach(doc => ingest(doc.data(), cfg));
-      reports.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      reports=[];
+      ZONES.forEach(z=>zoneStatus[z.id]={status:'todo',count:0,acts:[]});
+      snap.forEach(doc=>ingestReport(doc.data()));
+      reports.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
       renderAll();
-    }, err => {
-      setConn(false);
-      console.error(err);
-      showBanner('⚠️ Database error: ' + err.message);
+    },err=>{setConn(false);showBanner('DB error: '+err.message);});
+
+  // Objectives (to-do)
+  db.collection('objectives').where('case_id','==',CASE.id)
+    .onSnapshot(snap=>{
+      objectives=[];
+      snap.forEach(doc=>objectives.push({id:doc.id,...doc.data()}));
+      objectives.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+      renderTodo();
+      renderObjMarkers();
+      // update tab badge
+      document.getElementById('todoCount').textContent=objectives.length||'';
+    });
+
+  // Pins
+  db.collection('pins').where('case_id','==',CASE.id)
+    .onSnapshot(snap=>{
+      pins=[];
+      snap.forEach(doc=>pins.push({id:doc.id,...doc.data()}));
+      pins.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+      renderPins();
+      renderPinMarkers();
+    });
+
+  // Live people
+  db.collection('live_locations').where('case_id','==',CASE.id)
+    .onSnapshot(snap=>{
+      const fresh={};
+      snap.forEach(doc=>{const d=doc.data();fresh[doc.id]=d;});
+      // Remove stale (>5 min old)
+      const now=Date.now();
+      Object.keys(fresh).forEach(id=>{
+        const age=now-new Date(fresh[id].updated).getTime();
+        if(age>300000){delete fresh[id]; if(peopleMarkers[id]){map.removeLayer(peopleMarkers[id]);delete peopleMarkers[id];}}
+      });
+      // Remove markers for gone people
+      Object.keys(peopleMarkers).forEach(id=>{if(!fresh[id]){map.removeLayer(peopleMarkers[id]);delete peopleMarkers[id];}});
+      // Update/add markers
+      Object.entries(fresh).forEach(([id,p])=>{
+        const isMe=(id===myPeopleId);
+        const html=`<div style="background:${isMe?'#0ea5e9':'#7c3aed'};border-radius:50% 50% 50% 0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid #fff;transform:rotate(-45deg)"><span style="transform:rotate(45deg)">${isMe?'📍':'👤'}</span></div>`;
+        const icon=L.divIcon({className:'',html,iconAnchor:[14,28]});
+        if(peopleMarkers[id]){
+          peopleMarkers[id].setLatLng([p.lat,p.lng]);
+          peopleMarkers[id].setPopupContent(`<b>${esc(p.name)}</b>${isMe?' (you)':''}`);
+        }else{
+          peopleMarkers[id]=L.marker([p.lat,p.lng],{icon,zIndexOffset:500}).addTo(map);
+          peopleMarkers[id].bindPopup(`<b>${esc(p.name)}</b>${isMe?' (you)':''}`);
+        }
+      });
+      people=fresh;
     });
 }
 
-function ingest(r, cfg) {
+function ingestReport(r){
   reports.push(r);
-  const zid = r.zone_id || (r.lat&&r.lng ? zoneForPoint({lat:r.lat,lng:r.lng}, cfg) : null);
-  if (zid && zoneStatus[zid]) {
-    zoneStatus[zid].searched = r.needs_revisit ? false : true;
+  const zid=r.zone_id||(r.lat&&r.lng?zoneForPt({lat:r.lat,lng:r.lng}):null);
+  if(zid&&zoneStatus[zid]){
+    zoneStatus[zid].status=r.status||'done';
     zoneStatus[zid].count++;
+    if(r.activities)r.activities.forEach(a=>{if(!zoneStatus[zid].acts.includes(a))zoneStatus[zid].acts.push(a);});
   }
 }
 
-function setConn(ok) {
-  const dot = document.getElementById('dot'), t = document.getElementById('connText');
-  if (ok) { dot.className='status-dot live'; t.textContent='Live'; }
-  else    { dot.className='status-dot offline'; t.textContent='Offline'; }
+function setConn(ok){
+  document.getElementById('dot').className='dot '+(ok?'live':'off');
+  document.getElementById('connText').textContent=ok?'Live':'Offline';
+}
+function showBanner(m){const b=document.getElementById('banner');b.textContent=m;b.classList.add('on');}
+
+/* ══════════════ RENDER ZONES ══════════════ */
+function renderAll(){
+  ZONES.forEach(z=>paintZone(z.id));
+  populateZonePicker();
+  const total=ZONES.length;
+  const done=Object.values(zoneStatus).filter(s=>s.status==='done').length;
+  const active=Object.values(zoneStatus).filter(s=>s.status==='active').length;
+  document.getElementById('sDone').textContent=done;
+  document.getElementById('sActive').textContent=active;
+  document.getElementById('sTodo').textContent=total-done-active;
+  document.getElementById('sRep').textContent=reports.length;
+  document.getElementById('todoCount').textContent=(total-done);
+  // update after pins load too
+  renderTodo();renderLog();
 }
 
-/* ═══════════════════════════════════════════
-   TRACKER — submit report
-═══════════════════════════════════════════ */
-document.getElementById('reportForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  if (!ACTIVE_CASE) return;
-  const name    = document.getElementById('searcherName').value.trim() || 'Anonymous';
-  const area    = document.getElementById('areaName').value.trim();
-  const note    = document.getElementById('notes').value.trim();
-  const revisit = document.getElementById('needsRevisit').checked;
-  const targetZone = document.getElementById('areaName').dataset.zone || null;
-  let lat=null, lng=null, zid=targetZone;
-  if (myPos) { lat=myPos.lat; lng=myPos.lng; zid = zid || zoneForPoint(myPos, ACTIVE_CASE); }
-  if (!lat && !zid) { alert('Tap "Locate me" or pick a zone on the map first.'); return; }
+function populateZonePicker(){
+  const sel=document.getElementById('zonePicker'),cur=sel.value;
+  sel.innerHTML='<option value="">— Select zone or tap map —</option>';
+  ZONES.forEach(z=>{
+    const st=zoneStatus[z.id]||{status:'todo'};
+    const lbl={todo:'',active:' 🔍',done:' ✓'}[st.status]||'';
+    const opt=document.createElement('option');
+    opt.value=z.id;opt.textContent=z.id+lbl;
+    opt.dataset.status=st.status;
+    sel.appendChild(opt);
+  });
+  if(cur)sel.value=cur;
+}
 
-  const rec = {
-    case_id: ACTIVE_CASE.id,
-    searcher: name, area, notes:note,
-    lat, lng, zone_id:zid, needs_revisit:revisit,
-    created_at: new Date().toISOString()
-  };
-  const btn = document.getElementById('submitBtn');
-  btn.disabled=true; btn.textContent='Saving…';
-  try {
-    await db.collection('search_reports').add(rec);
-  } catch(err) {
-    alert('Could not save: ' + err.message);
-    btn.disabled=false; btn.textContent='✓ Record this search';
+function renderTodo(){
+  const el=document.getElementById('todoList');
+  if(!objectives.length){
+    el.innerHTML='<div class="empty">No objectives yet.<br>Tap "+ Add search objective" to recommend a location for others to check.</div>';
     return;
   }
-  e.target.reset();
-  delete document.getElementById('areaName').dataset.zone;
-  document.getElementById('geoZone').textContent = 'Recorded ✓';
-  btn.disabled=false; btn.textContent='✓ Record this search';
-});
-
-/* ═══════════════════════════════════════════
-   TRACKER — rendering
-═══════════════════════════════════════════ */
-function renderAll() {
-  ZONES.forEach(z => paintZone(z.id));
-  populateZonePicker();
-  const total = ZONES.length;
-  const done  = Object.values(zoneStatus).filter(s=>s.searched).length;
-  document.getElementById('sDone').textContent = done;
-  document.getElementById('sTodo').textContent = total - done;
-  document.getElementById('sReports').textContent = reports.length;
-  document.getElementById('todoCount').textContent = total - done;
-  renderTodo(); renderLog();
-}
-
-function renderTodo() {
-  const el = document.getElementById('todoList');
-  const remaining = ZONES.filter(z => !zoneStatus[z.id].searched);
-  if (!remaining.length) { el.innerHTML='<div class="empty">🎉 Every zone has been searched!</div>'; return; }
-  if (myPos) remaining.sort((a,b) => distM(myPos,a.center) - distM(myPos,b.center));
-  el.innerHTML = remaining.map(z => {
-    const d = myPos ? Math.round(distM(myPos, z.center)) : null;
-    return `<div class="zone-item" data-z="${z.id}">
-      <div class="zt">${z.id} <span class="pill todo">to search</span></div>
-      <div class="zd">${z.center.lat.toFixed(4)}, ${z.center.lng.toFixed(4)}${d!=null?' · ~'+d+'m from you':''}</div>
-    </div>`;
-  }).join('');
-  el.querySelectorAll('.zone-item').forEach(n => n.addEventListener('click', () => selectZone(n.dataset.z)));
-}
-
-function renderLog() {
-  const el = document.getElementById('logList');
-  if (!reports.length) { el.innerHTML='<div class="empty">No searches reported yet.</div>'; return; }
-  el.innerHTML = reports.map(r => {
-    const ago = timeAgo(new Date(r.created_at));
-    return `<div class="log-item">
-      <div class="who">${esc(r.searcher||'Anonymous')} ${r.needs_revisit?'<span class="pill todo">re-search</span>':'<span class="pill done">searched</span>'}</div>
-      <div class="meta">${r.zone_id?'Zone '+esc(r.zone_id)+' · ':''}${r.area?esc(r.area)+' · ':''}${ago}</div>
-      ${r.notes?'<div class="note">'+esc(r.notes)+'</div>':''}
+  el.innerHTML=objectives.map(o=>{
+    const d=myPos&&o.lat?Math.round(distM(myPos,{lat:o.lat,lng:o.lng})):null;
+    const photos=o.photos&&o.photos.length
+      ?`<div class="card-photos">${o.photos.map(u=>`<img src="${u}" onclick="viewImg('${u}')" loading="lazy"/>`).join('')}</div>`:'';
+    const link=o.link?`<div class="card-sub" style="color:var(--accent)"><a href="${esc(o.link)}" target="_blank" style="color:var(--accent)">🔗 ${esc(o.link.replace(/^https?:\/\//,'').slice(0,40))}…</a></div>`:'';
+    return `<div class="card" data-oid="${o.id}">
+      <div class="card-title">📌 ${esc(o.name)}</div>
+      ${o.address?`<div class="card-sub">📍 ${esc(o.address)}${d!=null?' · ~'+d+'m':''}</div>`:''}
+      ${o.contact?`<div class="card-sub">📞 ${esc(o.contact)}</div>`:''}
+      ${link}
+      ${o.notes?`<div class="card-note">${esc(o.notes)}</div>`:''}
+      ${o.added_by?`<div class="card-sub" style="margin-top:4px">Added by: ${esc(o.added_by)}</div>`:''}
+      ${photos}
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <button class="btn sec" style="margin:0;padding:7px 10px;font-size:12px;flex:1" onclick="flyToObj('${o.id}',event)">🗺 View on map</button>
+      </div>
     </div>`;
   }).join('');
 }
 
-function timeAgo(d) {
-  const s = Math.floor((Date.now()-d.getTime())/1000);
-  if(s<60)return s+'s ago'; if(s<3600)return Math.floor(s/60)+'m ago';
-  if(s<86400)return Math.floor(s/3600)+'h ago'; return d.toLocaleString();
+function flyToObj(id,e){
+  e&&e.stopPropagation();
+  const o=objectives.find(x=>x.id===id);
+  if(o&&o.lat){map.panTo([o.lat,o.lng]);map.setZoom(16);}
 }
-function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function showErr(el,msg){el.textContent=msg;el.classList.add('show');}
-function showBanner(html){const b=document.getElementById('cfgBanner');b.innerHTML=html;b.classList.add('show');}
 
-/* Tabs */
-document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
-  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
-  t.classList.add('active');
-  document.getElementById('panel-'+t.dataset.tab).classList.add('active');
-  if (t.dataset.tab==='report') setTimeout(()=>map&&map.invalidateSize(),50);
+
+/* ══════════════ LOG FILTERS ══════════════ */
+function toggleFilter(chip){
+  const ft=chip.dataset.ftype, fv=chip.dataset.fval;
+  const set=ft==='searcher'?logFilters.searchers:logFilters[ft];
+  if(set.has(fv)){
+    set.delete(fv); chip.className='fchip';
+  } else {
+    set.add(fv);
+    const cls=ft==='status'?({'done':'on-done','active':'on-active','todo':'on-todo'}[fv]||'on'):'on';
+    chip.className='fchip '+cls;
+  }
+  applyFilters();
+}
+
+function clearFilters(){
+  logFilters.status.clear(); logFilters.act.clear(); logFilters.searchers.clear();
+  logFilters.dateFrom=null; logFilters.dateTo=null;
+  document.querySelectorAll('.fchip').forEach(c=>c.className='fchip');
+  document.getElementById('fDateFrom').value='';
+  document.getElementById('fDateTo').value='';
+  applyFilters();
+}
+
+function applyFilters(){
+  logFilters.dateFrom=document.getElementById('fDateFrom').value||null;
+  logFilters.dateTo  =document.getElementById('fDateTo').value||null;
+  renderLog();
+}
+
+function getFilteredReports(){
+  return reports.filter(r=>{
+    if(logFilters.status.size && !logFilters.status.has(r.status)) return false;
+    if(logFilters.act.size){
+      const ra=new Set(r.activities||[]);
+      if(![...logFilters.act].some(a=>ra.has(a))) return false;
+    }
+    if(logFilters.searchers.size && !logFilters.searchers.has(r.searcher||'Anonymous')) return false;
+    if(logFilters.dateFrom||logFilters.dateTo){
+      const ds=new Date(r.created_at).toISOString().slice(0,10);
+      if(logFilters.dateFrom && ds<logFilters.dateFrom) return false;
+      if(logFilters.dateTo   && ds>logFilters.dateTo)   return false;
+    }
+    return true;
+  });
+}
+
+function updateSearcherChips(){
+  const names=[...new Set(reports.map(r=>r.searcher||'Anonymous'))].sort();
+  const container=document.getElementById('searcherChips'); if(!container)return;
+  const existing=[...container.querySelectorAll('.fchip')].map(c=>c.dataset.fval);
+  if(existing.join(','')===names.join(',')) return;
+  container.innerHTML='';
+  names.forEach(name=>{
+    const c=document.createElement('div');
+    c.className='fchip'+(logFilters.searchers.has(name)?' on':'');
+    c.dataset.ftype='searcher'; c.dataset.fval=name;
+    c.textContent='👤 '+name;
+    c.onclick=()=>toggleFilter(c);
+    container.appendChild(c);
+  });
+}
+
+function renderLog(){
+  const el=document.getElementById('logList');
+  const sumBar=document.getElementById('logSummary');
+  if(!reports.length){
+    el.innerHTML='<div class="empty">No reports yet. Submit a zone report to see it here.</div>';
+    if(sumBar) sumBar.style.display='none';
+    return;
+  }
+  updateSearcherChips();
+  const filtered=getFilteredReports();
+  const hasFilters=logFilters.status.size||logFilters.act.size||logFilters.searchers.size||logFilters.dateFrom||logFilters.dateTo;
+
+  // Summary bar — always shown
+  if(sumBar){
+    const src=hasFilters?filtered:reports;
+    const done  =src.filter(r=>r.status==='done').length;
+    const active=src.filter(r=>r.status==='active').length;
+    const people=new Set(src.map(r=>r.searcher||'Anonymous')).size;
+    const zones =new Set(src.map(r=>r.zone_id).filter(Boolean)).size;
+    const actC  ={};
+    src.forEach(r=>(r.activities||[]).forEach(a=>{actC[a]=(actC[a]||0)+1;}));
+    const topActs=Object.entries(actC).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([a,n])=>ACT[a]+'×'+n).join(' ');
+    sumBar.style.display='flex';
+    const prefix=hasFilters?`<strong>${filtered.length}</strong> of ${reports.length}`:`<strong>${reports.length}</strong> total`;
+    sumBar.innerHTML=prefix+` reports &nbsp;
+      <span class="sum-chip">✅ ${done}</span>
+      <span class="sum-chip">🔍 ${active}</span>
+      <span class="sum-chip">👤 ${people}</span>
+      <span class="sum-chip">🗺 ${zones} zones</span>
+      ${topActs?'<span class="sum-chip">'+topActs+'</span>':''}`;
+  }
+
+  if(!filtered.length){
+    el.innerHTML='<div class="empty">No reports match these filters.<br>Try clearing some filters.</div>';
+    return;
+  }
+
+  el.innerHTML=filtered.map(r=>{
+    const d   =new Date(r.created_at);
+    const ds  =d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    const ts  =d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    const pc  =r.status==='done'?'pd':r.status==='active'?'pa':'pt';
+    const pl  =r.status==='done'?'Searched':r.status==='active'?'Active':'Re-search';
+    const ac  =r.activities&&r.activities.length?r.activities.map(a=>ACT[a]).join(' '):'';
+    const photos=r.photos&&r.photos.length
+      ?`<div class="card-photos">${r.photos.map(u=>`<img src="${u}" onclick="viewImg('${u}')" loading="lazy"/>`).join('')}</div>`:'';
+    return `<div class="card" style="cursor:default">
+      <div class="card-title">${esc(r.searcher||'Anonymous')} <span class="pill ${pc}">${pl}</span></div>
+      <div class="card-sub" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:3px">
+        ${r.zone_id?`<span>🗺 Zone ${r.zone_id}</span>`:''}
+        <span>📅 ${ds}</span>
+        <span>🕐 ${ts}</span>
+      </div>
+      ${ac?`<div class="card-acts" style="margin-top:5px;font-size:14px;letter-spacing:2px">${ac}</div>`:''}
+      ${r.notes?`<div class="card-note">${esc(r.notes)}</div>`:''}
+      ${photos}
+    </div>`;
+  }).join('');
+}
+
+
+/* ══════════════ RENDER PINS ══════════════ */
+function renderPins(){
+  const el=document.getElementById('pinList');
+  if(!pins.length){el.innerHTML='<div class="empty">No locations added yet.<br>Tap "+ Add location" above.</div>';return;}
+  el.innerHTML=pins.map(p=>{
+    const isDone=p.status==='done';
+    const ic=isDone?'✅':'❗';
+    const pc=isDone?'pd':'pt';
+    const pl=isDone?'searched':'needs search';
+    const ac=p.activities&&p.activities.length?p.activities.map(a=>ACT[a]).join(' '):'';
+    const photos=p.photos&&p.photos.length?`<div class="card-photos">${p.photos.map(u=>`<img src="${u}" onclick="viewImg('${u}')" loading="lazy"/>`).join('')}</div>`:'';
+    return `<div class="card" data-pid="${p.id}">
+      <div class="card-title">${ic} ${esc(p.name)} <span class="pill ${pc}">${pl}</span></div>
+      ${p.address?`<div class="card-sub">📍 ${esc(p.address)}</div>`:''}
+      ${p.contact?`<div class="card-sub">📞 ${esc(p.contact)}</div>`:''}
+      ${ac?`<div class="card-acts" style="margin-top:3px">${ac}</div>`:''}
+      ${p.done_by?`<div class="card-note">By: ${esc(p.done_by)}</div>`:''}
+      ${p.notes?`<div class="card-note">${esc(p.notes)}</div>`:''}
+      ${photos}
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.card').forEach(c=>c.addEventListener('click',()=>{
+    const p=pins.find(x=>x.id===c.dataset.pid);
+    if(p&&p.lat){map.panTo([p.lat,p.lng]);map.setZoom(16);}
+  }));
+  renderTodo(); // keep todo tab in sync
+  // update todo count badge
+  const needsCount=pins.filter(p=>p.status==='needs'||!p.status).length;
+  const zDone=Object.values(zoneStatus).filter(s=>s.status==='done').length;
+  const zTotal=ZONES.length;
+  document.getElementById('todoCount').textContent=(zTotal-zDone+needsCount)||'';
+}
+
+function renderPinMarkers(){
+  // Remove old markers
+  Object.values(pinMarkers).forEach(m=>map.removeLayer(m));
+  Object.keys(pinMarkers).forEach(k=>delete pinMarkers[k]);
+  pins.forEach(p=>{
+    if(!p.lat)return;
+    const isDone=p.status==='done';
+    const html=`<div style="font-size:20px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.8));line-height:1">${isDone?'✅':'❗'}</div>`;
+    const icon=L.divIcon({className:'',html,iconAnchor:[12,20]});
+    const m=L.marker([p.lat,p.lng],{icon,zIndexOffset:200}).addTo(map);
+    const ac=p.activities&&p.activities.length?'<br>'+p.activities.map(a=>ACT[a]).join(' '):'';
+    const contact=p.contact?`<br>📞 ${esc(p.contact)}`:'';
+    const photos=p.photos&&p.photos.length?`<br><img src="${p.photos[0]}" style="width:80px;height:60px;object-fit:cover;border-radius:4px;margin-top:4px"/>`:'' ;
+    m.bindPopup(`<b>${esc(p.name)}</b>${p.address?'<br>'+esc(p.address):''}${contact}${ac}${photos}`);
+    pinMarkers[p.id]=m;
+  });
+}
+
+/* ══════════════ IMAGE VIEWER ══════════════ */
+function viewImg(url){
+  document.getElementById('imgViewerImg').src=url;
+  document.getElementById('imgViewer').classList.add('on');
+}
+function closeImg(){
+  document.getElementById('imgViewer').classList.remove('on');
+  document.getElementById('imgViewerImg').src='';
+}
+
+/* ══════════════ OBJECTIVE MODAL ══════════════ */
+let objLat=null, objLng=null;
+const objMarkers={};
+
+function openObjModal(){
+  objLat=null;objLng=null;
+  pendingPhotoFiles.obj=[];
+  ['objName','objAddr','objContact','objNotes','objLink','objBy'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('objGeoBar').style.display='none';
+  clearPhotoStrip('obj');
+  document.getElementById('objOverlay').classList.add('on');
+  // enable map-click to drop obj pin
+  map._objDropMode=true;
+}
+function closeObjModal(){
+  document.getElementById('objOverlay').classList.remove('on');
+  map._objDropMode=false;
+}
+
+function useObjGPS(){
+  doLocate(()=>{
+    if(myPos){
+      objLat=myPos.lat;objLng=myPos.lng;
+      document.getElementById('objCoords').textContent=objLat.toFixed(5)+', '+objLng.toFixed(5);
+      document.getElementById('objGeoBar').style.display='flex';
+    }
+  });
+}
+
+async function submitObjective(){
+  const name=document.getElementById('objName').value.trim();
+  const addr=document.getElementById('objAddr').value.trim();
+  if(!name){alert('Name is required.');return;}
+  if(!objLat&&!addr){alert('Please provide a location — enter an address, use GPS, or tap the map.');return;}
+
+  const btn=document.getElementById('objSubmitBtn');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Saving…';
+
+  if(!objLat&&addr){
+    try{
+      const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addr+', New York City')}`);
+      const d=await r.json();
+      if(d.length){objLat=parseFloat(d[0].lat);objLng=parseFloat(d[0].lon);}
+      else{alert('Address not found. Try adding the borough (e.g. "Brooklyn") or use GPS.');btn.disabled=false;btn.textContent='✓ Save objective';return;}
+    }catch(e){alert('Geocoding failed: '+e.message);btn.disabled=false;btn.textContent='✓ Save objective';return;}
+  }
+
+  let photoUrls=[];
+  try{photoUrls=await uploadPhotos('obj',`objectives/${CASE.id}`);}catch(e){console.warn(e);}
+
+  const rec={
+    case_id:CASE.id,
+    name,
+    address:addr,
+    lat:objLat,lng:objLng,
+    contact:document.getElementById('objContact').value.trim(),
+    notes:document.getElementById('objNotes').value.trim(),
+    link:document.getElementById('objLink').value.trim(),
+    added_by:document.getElementById('objBy').value.trim(),
+    photos:photoUrls,
+    created_at:new Date().toISOString()
+  };
+
+  try{await db.collection('objectives').add(rec);}
+  catch(err){alert('Could not save: '+err.message);btn.disabled=false;btn.textContent='✓ Save objective';return;}
+
+  closeObjModal();
+  btn.disabled=false;btn.textContent='✓ Save objective';
+}
+
+function renderObjMarkers(){
+  Object.values(objMarkers).forEach(m=>map.removeLayer(m));
+  Object.keys(objMarkers).forEach(k=>delete objMarkers[k]);
+  objectives.forEach(o=>{
+    if(!o.lat)return;
+    const icon=L.divIcon({className:'',html:'<div style="font-size:22px;filter:drop-shadow(0 1px 3px rgba(0,0,0,.9));line-height:1">📌</div>',iconAnchor:[11,22]});
+    const m=L.marker([o.lat,o.lng],{icon,zIndexOffset:300}).addTo(map);
+    const contact=o.contact?`<br>📞 ${esc(o.contact)}`:'';
+    const link=o.link?`<br><a href="${esc(o.link)}" target="_blank" style="color:#38bdf8">🔗 Link</a>`:'';
+    m.bindPopup(`<b>📌 ${esc(o.name)}</b>${o.address?'<br>'+esc(o.address):''}${contact}${link}${o.notes?'<br><i>'+esc(o.notes)+'</i>':''}`);
+    objMarkers[o.id]=m;
+  });
+}
+
+/* ══════════════ SHARE ══════════════ */
+function openShare(){
+  document.getElementById('shareUrl').textContent=window.location.href;
+  document.getElementById('shareOverlay').classList.add('on');
+}
+function closeShare(){document.getElementById('shareOverlay').classList.remove('on');}
+function copyUrl(){
+  navigator.clipboard.writeText(window.location.href).then(()=>{
+    const b=document.getElementById('copyBtn');
+    b.textContent='✅ Copied!';
+    setTimeout(()=>b.textContent='📋 Copy link',2500);
+  });
+}
+
+/* ══════════════ TABS ══════════════ */
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.pane').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on');
+  document.getElementById('pane-'+t.dataset.pane).classList.add('on');
+  if(t.dataset.pane==='report')setTimeout(()=>map&&map.invalidateSize(),50);
 }));
 
-/* Resize / orientation */
-window.addEventListener('resize', () => setTimeout(()=>map&&map.invalidateSize(),200));
+/* ══════════════ UTILS ══════════════ */
+function timeAgo(d){
+  const s=Math.floor((Date.now()-d)/1000);
+  if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';
+  if(s<86400)return Math.floor(s/3600)+'h ago';return d.toLocaleDateString();
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+window.addEventListener('resize',()=>setTimeout(()=>map&&map.invalidateSize(),200));
+
+/* ══════════════ BOOT ══════════════ */
+initMap();
+initBackend();
 </script>
 </body>
 </html>
