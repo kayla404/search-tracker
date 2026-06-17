@@ -930,9 +930,8 @@ function ingestReport(r,docId){
   if(docId&&!r.id)r.id=docId;
   if(!r.id)r.id='r-'+Math.random().toString(36).slice(2,9);
   reports.push(r);
-  // If report has lat/lng use that for zone assignment (most accurate)
-  var zid=r.lat&&r.lng?zoneForPt({lat:r.lat,lng:r.lng}):(r.zone_id||null);
-  if(!zid)zid=r.zone_id;
+  // Always trust the stored zone_id — never override with GPS
+  var zid=r.zone_id||null;
   if(zid&&zoneStatus[zid]){zoneStatus[zid].status=r.status||'done';zoneStatus[zid].count++;if(r.activities)r.activities.forEach(function(a){if(zoneStatus[zid].acts.indexOf(a)<0)zoneStatus[zid].acts.push(a);});}
 }
 function setConn(ok){document.getElementById('dot').className='dot '+(ok?'live':'off');document.getElementById('connText').textContent=ok?'Live':'Offline';}
