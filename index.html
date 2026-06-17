@@ -765,7 +765,7 @@ async function submitReport(){
   try{await db.collection('search_reports').add(rec);}
   catch(err){alert('Could not save: '+err.message);btn.disabled=false;btn.textContent='\u2713 Submit zone report';return;}
   document.getElementById('rName').value='';document.getElementById('rNotes').value='';
-  clearStrip('r');selZone=null;selStatus=null;selActs=new Set();
+  selZone=null;selStatus=null;selActs=new Set();
   document.querySelectorAll('#pane-report .sopt').forEach(function(el){el.className='sopt';});
   document.querySelectorAll('#pane-report .aopt').forEach(function(el){el.classList.remove('on');});
   document.getElementById('zoneInput').value='';
@@ -779,13 +779,13 @@ async function submitReport(){
 
 /* ===== PIN MODAL ===== */
 function openPinModal(){
-  pinLat=null;pinLng=null;pinStatus=null;pinZS=null;pinActs=new Set();pendingFiles.pin=[];
+  pinLat=null;pinLng=null;pinStatus=null;pinZS=null;pinActs=new Set();
   ['pinName','pinAddr','pinContact','pinNotes','pinDoneBy'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('pinGeoBar').style.display='none';document.getElementById('pinDoneX').style.display='none';
   document.querySelectorAll('#pinSrow .sopt,#pinZSrow .sopt').forEach(function(el){el.className='sopt';});
   document.querySelectorAll('#pinAGrid .aopt').forEach(function(el){el.classList.remove('on');});
   document.getElementById('pinModalTitle').textContent='Add Location / Organization';
-  clearStrip('pin');document.getElementById('pinOv').classList.add('on');
+  document.getElementById('pinOv').classList.add('on');
 }
 function closePinModal(){document.getElementById('pinOv').classList.remove('on');_editingPinId=null;}
 var _editingPinId=null;
@@ -850,7 +850,7 @@ async function submitPin(){
 
 /* ===== OBJ MODAL ===== */
 function openObjModal(){
-  objLat=null;objLng=null;pendingFiles.obj=[];
+  objLat=null;objLng=null;
   ['objName','objAddr','objContact','objNotes','objLink','objBy'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('objGeoBar').style.display='none';
   document.getElementById('objOv').classList.add('on');
