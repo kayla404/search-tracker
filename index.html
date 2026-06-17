@@ -8,7 +8,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <style>
 :root{
   --bg:#0f172a;--panel:#1e293b;--panel2:#273449;--line:#334155;
@@ -115,11 +114,6 @@ textarea{resize:vertical;min-height:52px}
 .help{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.5}
 
 /* ── Photos ── */
-.photo-strip{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0}
-.photo-thumb{width:60px;height:60px;border-radius:7px;object-fit:cover;border:1px solid var(--line)}
-.photo-add{width:60px;height:60px;border-radius:7px;border:1.5px dashed var(--line);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:22px;color:var(--muted);background:var(--panel2)}
-input[type=file]{display:none}
-.uprog{font-size:10px;color:var(--accent);margin-top:3px}
 
 /* ── Cards ── */
 .card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 11px;margin-bottom:7px}
@@ -130,8 +124,6 @@ input[type=file]{display:none}
 .csub{font-size:10px;color:var(--muted);margin-top:2px}
 .cacts{margin-top:3px;font-size:13px;letter-spacing:1px}
 .cnote{font-size:11px;margin-top:4px;color:#cbd5e1;line-height:1.4}
-.cphotos{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
-.cphotos img{width:52px;height:52px;border-radius:5px;object-fit:cover;border:1px solid var(--line);cursor:pointer}
 .card-actions{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
 .ca-btn{flex:1;border:1px solid var(--line);border-radius:7px;padding:5px 4px;font-size:10px;font-weight:700;cursor:pointer;background:var(--panel);color:var(--muted);text-align:center;user-select:none;white-space:nowrap}
 .ca-btn:active{opacity:.7}
@@ -179,15 +171,8 @@ input[type=file]{display:none}
 .sheet h3{font-size:16px;font-weight:800;margin-bottom:12px;text-align:center}
 .sheet-x{float:right;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;margin-top:-4px}
 
-/* ── Image viewer ── */
-#imgv{position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column}
-#imgv.on{display:flex}
-#imgv img{max-width:96vw;max-height:85vh;border-radius:8px;object-fit:contain}
-#imgv button{margin-top:16px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 24px;color:var(--text);font-size:14px;font-weight:700;cursor:pointer}
 
 /* ── Detail sheet ── */
-#detailSheet .detail-photos{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-#detailSheet .detail-photos img{width:80px;height:80px;border-radius:7px;object-fit:cover;cursor:pointer;border:1px solid var(--line)}
 
 .spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:5px}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -290,10 +275,7 @@ input[type=file]{display:none}
       </div>
       <span class="flabel" style="margin-top:14px">4 &#xB7; Your name / team</span>
       <input type="text" id="rName" placeholder="e.g. Team B &#x2013; Rivera" autocomplete="name"/>
-      <span class="flabel">5 &#xB7; Photos (optional)</span>
-      <div class="photo-strip" id="rStrip"><div class="photo-add" onclick="document.getElementById('rFiles').click()">+</div></div>
-      <input type="file" id="rFiles" accept="image/*" multiple onchange="addPhotos(this,'r')"/>
-      <div class="uprog" id="rProg"></div>
+
       <span class="flabel">6 &#xB7; Notes (optional)</span>
       <textarea id="rNotes" placeholder="What you found, conditions, who you spoke to&#x2026;"></textarea>
       <button class="btn" id="submitBtn" onclick="submitReport()">&#x2713; Submit zone report</button>
@@ -414,10 +396,7 @@ input[type=file]{display:none}
     <input type="text" id="pinContact" placeholder="Phone, email, etc."/>
     <span class="flabel">Notes (optional)</span>
     <textarea id="pinNotes" placeholder="Hours, details, key contacts&#x2026;"></textarea>
-    <span class="flabel">Photos (optional)</span>
-    <div class="photo-strip" id="pinStrip"><div class="photo-add" onclick="document.getElementById('pinFiles').click()">+</div></div>
-    <input type="file" id="pinFiles" accept="image/*" multiple onchange="addPhotos(this,'pin')"/>
-    <div class="uprog" id="pinProg"></div>
+
     <button class="btn" id="pinSubmit" onclick="submitPin()" style="margin-top:14px">Save location</button>
   </div>
 </div>
@@ -441,10 +420,7 @@ input[type=file]{display:none}
     <input type="text" id="objContact" placeholder="Phone, email, or person to reach"/>
     <span class="flabel">Notes (optional)</span>
     <textarea id="objNotes" placeholder="Why this location? What to look for, hours&#x2026;" style="min-height:80px"></textarea>
-    <span class="flabel">Photos (optional)</span>
-    <div class="photo-strip" id="objStrip"><div class="photo-add" onclick="document.getElementById('objFiles').click()">+</div></div>
-    <input type="file" id="objFiles" accept="image/*" multiple onchange="addPhotos(this,'obj')"/>
-    <div class="uprog" id="objProg"></div>
+
     <span class="flabel" style="margin-top:14px">Link (optional)</span>
     <input type="text" id="objLink" placeholder="Paste a Google Maps or website link"/>
     <span class="flabel">Added by (optional)</span>
@@ -486,11 +462,6 @@ input[type=file]{display:none}
   </div>
 </div>
 
-<!-- IMAGE VIEWER -->
-<div id="imgv" onclick="closeImg()">
-  <img id="imgvImg" src="" alt=""/>
-  <button onclick="closeImg()">Close</button>
-</div>
 
 <script>
 /* ===== CONFIG ===== */
@@ -542,7 +513,6 @@ const FB = {
 };
 firebase.initializeApp(FB);
 const db = firebase.firestore();
-const storage = firebase.storage();
 
 /* ===== STATE ===== */
 let map, ZONES=[], zoneLayers={}, zoneStatus={};
@@ -552,7 +522,6 @@ let selZone=null, selStatus=null, selActs=new Set(), selZoneAddr=null;
 var myDisplayName=localStorage.getItem('myDisplayName')||'';
 let pinLat=null, pinLng=null, pinStatus=null, pinZS=null, pinActs=new Set();
 let objLat=null, objLng=null;
-let pendingFiles={r:[],pin:[],obj:[]};
 const peopleM={}, pinM={}, objM={}, actM={};
 const LF={status:new Set(),act:new Set(),who:new Set(),from:null,to:null};
 let sidebarOpen=true;
@@ -780,35 +749,6 @@ function pushLoc(name){
 window.addEventListener('beforeunload',function(){if(myPeopleId)db.collection('live_locations').doc(myPeopleId).delete();});
 
 /* ===== PHOTOS ===== */
-function addPhotos(input,ctx){
-  var files=Array.from(input.files);
-  pendingFiles[ctx]=(pendingFiles[ctx]||[]).concat(files);
-  var strip=document.getElementById(ctx+'Strip');
-  files.forEach(function(f){
-    var url=URL.createObjectURL(f);
-    var img=document.createElement('img');img.src=url;img.className='photo-thumb';
-    strip.insertBefore(img,strip.lastElementChild);
-  });
-  input.value='';
-}
-async function uploadPhotos(ctx,folder){
-  var files=pendingFiles[ctx]||[];if(!files.length)return[];
-  var prog=document.getElementById(ctx+'Prog');
-  prog.textContent='Uploading '+files.length+' photo(s)...';
-  var urls=[];
-  for(var i=0;i<files.length;i++){
-    var ref=storage.ref(folder+'/'+Date.now()+'-'+files[i].name);
-    await ref.put(files[i]);
-    urls.push(await ref.getDownloadURL());
-    prog.textContent='Uploaded '+(i+1)+'/'+files.length+'...';
-  }
-  pendingFiles[ctx]=[];prog.textContent='';
-  return urls;
-}
-function clearStrip(ctx){
-  var strip=document.getElementById(ctx+'Strip');
-  Array.from(strip.querySelectorAll('.photo-thumb')).forEach(function(el){el.remove();});
-}
 
 /* ===== SUBMIT REPORT ===== */
 async function submitReport(){
@@ -818,8 +758,7 @@ async function submitReport(){
   var note=document.getElementById('rNotes').value.trim();
   var btn=document.getElementById('submitBtn');
   btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Saving...';
-  var photos=[];try{photos=await uploadPhotos('r','reports/'+CASE.id);}catch(e){console.warn(e);}
-  var rec={case_id:CASE.id,zone_id:selZone,zone_addr:selZoneAddr||null,status:selStatus,activities:Array.from(selActs),searcher:name,notes:note,photos:photos,lat:myPos?myPos.lat:null,lng:myPos?myPos.lng:null,created_at:new Date().toISOString()};
+  var rec={case_id:CASE.id,zone_id:selZone,zone_addr:selZoneAddr||null,status:selStatus,activities:Array.from(selActs),searcher:name,notes:note,lat:myPos?myPos.lat:null,lng:myPos?myPos.lng:null,created_at:new Date().toISOString()};
   try{await db.collection('search_reports').add(rec);}
   catch(err){alert('Could not save: '+err.message);btn.disabled=false;btn.textContent='\u2713 Submit zone report';return;}
   document.getElementById('rName').value='';document.getElementById('rNotes').value='';
@@ -897,8 +836,7 @@ async function submitPin(){
     try{var res=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(addr+', New York City'));var data=await res.json();if(data.length){pinLat=parseFloat(data[0].lat);pinLng=parseFloat(data[0].lon);}else{alert('Address not found. Try adding the borough or use GPS.');btn.disabled=false;btn.textContent='Save location';return;}}
     catch(e){alert('Geocoding failed: '+e.message);btn.disabled=false;btn.textContent='Save location';return;}
   }
-  var photos=[];try{photos=await uploadPhotos('pin','pins/'+CASE.id);}catch(e){console.warn(e);}
-  var rec={case_id:CASE.id,name:name,address:addr,lat:pinLat,lng:pinLng,status:pinStatus||'needs',zone_status:pinZS,activities:Array.from(pinActs),done_by:document.getElementById('pinDoneBy').value.trim(),contact:document.getElementById('pinContact').value.trim(),notes:document.getElementById('pinNotes').value.trim(),photos:photos,created_at:new Date().toISOString()};
+  var rec={case_id:CASE.id,name:name,address:addr,lat:pinLat,lng:pinLng,status:pinStatus||'needs',zone_status:pinZS,activities:Array.from(pinActs),done_by:document.getElementById('pinDoneBy').value.trim(),contact:document.getElementById('pinContact').value.trim(),notes:document.getElementById('pinNotes').value.trim(),created_at:new Date().toISOString()};
   try{
     if(_editingPinId){await db.collection('pins').doc(_editingPinId).update(rec);}
     else{await db.collection('pins').add(rec);}
@@ -911,7 +849,7 @@ async function submitPin(){
 function openObjModal(){
   objLat=null;objLng=null;pendingFiles.obj=[];
   ['objName','objAddr','objContact','objNotes','objLink','objBy'].forEach(function(id){document.getElementById(id).value='';});
-  document.getElementById('objGeoBar').style.display='none';clearStrip('obj');
+  document.getElementById('objGeoBar').style.display='none';
   document.getElementById('objOv').classList.add('on');
 }
 function closeObjModal(){document.getElementById('objOv').classList.remove('on');_editingObjId=null;}
@@ -943,8 +881,7 @@ async function submitObj(){
     try{var res=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(addr+', New York City'));var data=await res.json();if(data.length){objLat=parseFloat(data[0].lat);objLng=parseFloat(data[0].lon);}else{alert('Address not found.');btn.disabled=false;btn.textContent='\u2713 Save objective';return;}}
     catch(e){alert('Geocoding failed: '+e.message);btn.disabled=false;btn.textContent='\u2713 Save objective';return;}
   }
-  var photos=[];try{photos=await uploadPhotos('obj','objectives/'+CASE.id);}catch(e){console.warn(e);}
-  var rec={case_id:CASE.id,name:name,address:addr,lat:objLat,lng:objLng,contact:document.getElementById('objContact').value.trim(),notes:document.getElementById('objNotes').value.trim(),link:document.getElementById('objLink').value.trim(),added_by:document.getElementById('objBy').value.trim(),photos:photos,created_at:new Date().toISOString()};
+  var rec={case_id:CASE.id,name:name,address:addr,lat:objLat,lng:objLng,contact:document.getElementById('objContact').value.trim(),notes:document.getElementById('objNotes').value.trim(),link:document.getElementById('objLink').value.trim(),added_by:document.getElementById('objBy').value.trim(),created_at:new Date().toISOString()};
   try{
     if(_editingObjId){await db.collection('objectives').doc(_editingObjId).update(rec);}
     else{await db.collection('objectives').add(rec);}
@@ -1089,11 +1026,6 @@ function openDetail(item, type){
     if(item.activities&&item.activities.length)html+='<div class="cacts" style="margin-top:8px;font-size:16px">'+item.activities.map(function(a){return ACT[a]||'';}).join(' ')+'</div>';
     if(item.notes)html+='<div class="cnote" style="margin-top:10px;font-size:13px">'+esc(item.notes)+'</div>';
     if(item.link)html+='<div style="margin-top:10px"><a href="'+esc(item.link)+'" target="_blank" style="color:var(--accent);font-size:13px">&#x1F517; '+esc(item.link.replace(/^https?:\/\//,'').slice(0,50))+'</a></div>';
-  }
-  if(item.photos&&item.photos.length){
-    html+='<div class="detail-photos">';
-    item.photos.forEach(function(u){html+='<img src="'+u+'" onclick="viewImg(\''+u+'\')" loading="lazy"/>';});
-    html+='</div>';
   }
   if(item.lat&&item.lng){
     html+='<button class="btn sec" style="margin-top:12px" onclick="map.panTo(['+item.lat+','+item.lng+']);map.setZoom(15);closeDetail()">&#x1F5FA; View on map</button>';
@@ -1336,7 +1268,6 @@ function renderLog(){
       '</div>'+
       (ac?'<div class="cacts" style="margin-top:4px;font-size:14px;letter-spacing:2px">'+ac+'</div>':'')+
       (r.notes?'<div class="cnote" style="max-height:2.8em;overflow:hidden">'+esc(r.notes)+'</div>':'')+
-      (r.photos&&r.photos.length?'<div style="margin-top:4px;font-size:10px;color:var(--accent)">&#x1F4F7; '+r.photos.length+' photo'+(r.photos.length>1?'s':'')+'  \u2014 tap to view</div>':'')+
     '</div>';
   }).join('');
 }
@@ -1347,8 +1278,6 @@ function closeShare(){document.getElementById('shareOv').classList.remove('on');
 function copyUrl(){navigator.clipboard.writeText(window.location.href).then(function(){var b=document.getElementById('copyBtn');b.textContent='\u2705 Copied!';setTimeout(function(){b.textContent='&#x1F4CB; Copy link';},2500);});}
 
 /* ===== IMAGE VIEWER ===== */
-function viewImg(url){document.getElementById('imgvImg').src=url;document.getElementById('imgv').classList.add('on');}
-function closeImg(){document.getElementById('imgv').classList.remove('on');document.getElementById('imgvImg').src='';}
 
 /* ===== COLLAPSE ===== */
 function toggleLegend(){document.getElementById('legend').classList.toggle('collapsed');}
