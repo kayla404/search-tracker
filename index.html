@@ -756,7 +756,7 @@ async function submitReport(){
   var note=document.getElementById('rNotes').value.trim();
   var btn=document.getElementById('submitBtn');
   btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Saving...';
-  var rec={case_id:CASE.id,zone_id:selZone,zone_addr:selZoneAddr||null,status:selStatus,activities:Array.from(selActs),searcher:name,notes:note,lat:myPos?myPos.lat:null,lng:myPos?myPos.lng:null,created_at:new Date().toISOString()};
+  var rec={case_id:CASE.id,zone_id:selZone,zone_addr:selZoneAddr||null,status:selStatus,activities:Array.from(selActs),searcher:name,notes:note,created_at:new Date().toISOString()};
   try{await db.collection('search_reports').add(rec);}
   catch(err){alert('Could not save: '+err.message);btn.disabled=false;btn.textContent='\u2713 Submit zone report';return;}
   document.getElementById('rName').value='';document.getElementById('rNotes').value='';
